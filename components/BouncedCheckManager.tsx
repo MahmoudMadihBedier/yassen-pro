@@ -58,28 +58,28 @@ export default function BouncedCheckManager() {
   const [editTouchedFields, setEditTouchedFields] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    // Try to load from remote API first. Fall back to localStorage if API is unavailable.
+    // Always load from MongoDB—it's the single source of truth
     const fetchChecks = async () => {
       try {
         const res = await fetch('/api/checks');
         if (!res.ok) throw new Error('API fetch failed');
         const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
+        if (Array.isArray(data)) {
           setChecks(data);
+          // Keep a local cache for offline reference, but trust the API as source of truth
           localStorage.setItem('bouncedChecks', JSON.stringify(data));
           return;
         }
       } catch (err) {
-        // ignore, fallback to local storage
-        console.warn('Failed to fetch checks from API, falling back to localStorage', err);
-      }
-
-      const savedChecks = localStorage.getItem('bouncedChecks');
-      if (savedChecks) {
-        setChecks(JSON.parse(savedChecks));
-      } else {
-        setChecks(initialData);
-        localStorage.setItem('bouncedChecks', JSON.stringify(initialData));
+        // If API fails, show error but try to use local cache as fallback
+        console.error('Failed to fetch checks from MongoDB API:', err);
+        const savedChecks = localStorage.getItem('bouncedChecks');
+        if (savedChecks) {
+          console.warn('Using stale local cache. Please refresh when connection is restored.');
+          setChecks(JSON.parse(savedChecks));
+        } else {
+          setChecks([]);
+        }
       }
     };
 
@@ -87,9 +87,6 @@ export default function BouncedCheckManager() {
   }, []);
 
   useEffect(() => {
-    if (checks.length > 0) {
-      localStorage.setItem('bouncedChecks', JSON.stringify(checks));
-    }
     filterChecks();
   }, [checks, searchTerm, filterStatus]);
 
@@ -147,7 +144,7 @@ export default function BouncedCheckManager() {
       notes: formData.notes || ''
     };
 
-    // Try to persist to API, fallback to local update if API fails
+    // Save to MongoDB—this is the source of truth
     try {
       const res = await fetch('/api/checks', {
         method: 'POST',
@@ -158,13 +155,12 @@ export default function BouncedCheckManager() {
       if (!res.ok) throw new Error('API create failed');
 
       const created = await res.json();
-      // Update UI
+      // Update UI and local cache
       setChecks(prev => [...prev, created]);
       localStorage.setItem('bouncedChecks', JSON.stringify([...checks, created]));
     } catch (err) {
-      console.warn('Failed to save to API, saving locally', err);
-      setChecks(prev => [...prev, newCheck]);
-      localStorage.setItem('bouncedChecks', JSON.stringify([...checks, newCheck]));
+      console.error('Failed to save to MongoDB:', err);
+      alert('Error saving check. Please try again.');
     }
 
     setShowAddModal(false);
@@ -196,12 +192,8 @@ export default function BouncedCheckManager() {
       setChecks(prev => prev.map(c => c.id === updated.id ? updated : c));
       localStorage.setItem('bouncedChecks', JSON.stringify(checks.map(c => c.id === updated.id ? updated : c)));
     } catch (err) {
-      console.warn('Failed to update on API, applying local update', err);
-      const updatedChecks = checks.map(check =>
-        check.id === selectedCheck.id ? selectedCheck : check
-      );
-      setChecks(updatedChecks);
-      localStorage.setItem('bouncedChecks', JSON.stringify(updatedChecks));
+      console.error('Failed to update in MongoDB:', err);
+      alert('Error updating check. Please try again.');
     }
 
     setShowDetailModal(false);
@@ -217,9 +209,8 @@ export default function BouncedCheckManager() {
       setChecks(prev => prev.filter(check => check.id !== id));
       localStorage.setItem('bouncedChecks', JSON.stringify(checks.filter(check => check.id !== id)));
     } catch (err) {
-      console.warn('Failed to delete on API, deleting locally', err);
-      setChecks(prev => prev.filter(check => check.id !== id));
-      localStorage.setItem('bouncedChecks', JSON.stringify(checks.filter(check => check.id !== id)));
+      console.error('Failed to delete from MongoDB:', err);
+      alert('Error deleting check. Please try again.');
     }
 
     setShowDetailModal(false);
@@ -246,9 +237,8 @@ export default function BouncedCheckManager() {
       setChecks(prev => prev.map(c => c.id === checkId ? updatedFromServer : c));
       localStorage.setItem('bouncedChecks', JSON.stringify(checks.map(c => c.id === checkId ? updatedFromServer : c)));
     } catch (err) {
-      console.warn('Failed to update follow-up on API, updating locally', err);
-      setChecks(prev => prev.map(c => c.id === checkId ? updated : c));
-      localStorage.setItem('bouncedChecks', JSON.stringify(checks.map(c => c.id === checkId ? updated : c)));
+      console.error('Failed to update follow-up in MongoDB:', err);
+      alert('Error updating follow-up date. Please try again.');
     }
   };
 
