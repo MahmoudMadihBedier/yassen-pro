@@ -29,27 +29,50 @@ async function callAppsScript(method: string, path: string, body?: any) {
 
 export async function GET() {
   try {
+    if (!APPS_SCRIPT_URL) {
+      console.error('GOOGLE_APPS_SCRIPT_URL not configured');
+      return NextResponse.json(
+        { error: 'Server configuration error: GOOGLE_APPS_SCRIPT_URL not set' },
+        { status: 500 }
+      );
+    }
+    
     const checks = await callAppsScript('GET', '/checks');
     return NextResponse.json(checks);
   } catch (err) {
     console.error('GET /api/checks error:', err);
-    return NextResponse.json({ error: 'Failed to fetch checks' }, { status: 500 });
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Failed to fetch checks' },
+      { status: 500 }
+    );
   }
 }
 
 export async function POST(request: Request) {
   try {
+    if (!APPS_SCRIPT_URL) {
+      console.error('GOOGLE_APPS_SCRIPT_URL not configured');
+      return NextResponse.json(
+        { error: 'Server configuration error: GOOGLE_APPS_SCRIPT_URL not set' },
+        { status: 500 }
+      );
+    }
+    
     const body = await request.json();
     const check = await callAppsScript('POST', '/checks', body);
     
     if (check.error) {
-      return NextResponse.json(check, { status: 400 });
+      console.error('Apps Script returned error:', check.error);
+      return NextResponse.json(check, { status: 500 });
     }
     
     return NextResponse.json(check, { status: 201 });
   } catch (err) {
     console.error('POST /api/checks error:', err);
-    return NextResponse.json({ error: 'Failed to create check' }, { status: 500 });
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Failed to create check' },
+      { status: 500 }
+    );
   }
 }
 
