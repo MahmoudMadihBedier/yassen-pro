@@ -33,9 +33,65 @@ interface CheckRecord {
   notes: string;
 }
 
-const initialData: CheckRecord[] = [];
-
 export default function BouncedCheckManager() {
+  // Helper: normalize various date formats (Date object, ISO string, yyyy-MM-dd)
+  const normalizeDateString = (value: any) => {
+    if (!value && value !== 0) return '';
+    try {
+      if (value instanceof Date) return format(value, 'yyyy-MM-dd');
+      if (typeof value === 'string') {
+        // If already in yyyy-MM-dd, return as-is
+        const maybe = value.trim();
+        if (/^\d{4}-\d{2}-\d{2}$/.test(maybe)) return maybe;
+        // Try parsing ISO or other string formats
+        const d = new Date(maybe);
+        if (!isNaN(d.getTime())) return format(d, 'yyyy-MM-dd');
+        // Fallback: first 10 chars (common ISO prefix)
+        return maybe.slice(0, 10);
+      }
+      // Fallback to string conversion
+      const d = new Date(String(value));
+      if (!isNaN(d.getTime())) return format(d, 'yyyy-MM-dd');
+      return String(value);
+    } catch (err) {
+      return String(value || '');
+    }
+  };
+
+  const normalizeCheck = (c: any): CheckRecord => ({
+    id: String(c.id ?? ''),
+    date: normalizeDateString(c.date) || format(new Date(), 'yyyy-MM-dd'),
+    checkNumber: String(c.checkNumber ?? ''),
+    reason: String(c.reason ?? ''),
+    amount: Number(c.amount ?? 0) || 0,
+    name: String(c.name ?? ''),
+    building: String(c.building ?? ''),
+    unitNumber: String(c.unitNumber ?? ''),
+    paymentWay: String(c.paymentWay ?? ''),
+    status: (c.status as any) || 'bounced',
+    staff: String(c.staff ?? ''),
+    email: String(c.email ?? ''),
+    phone: String(c.phone ?? ''),
+    followUpDate: normalizeDateString(c.followUpDate) || format(addWeeks(new Date(), 2), 'yyyy-MM-dd'),
+    returnDate: c.returnDate ? normalizeDateString(c.returnDate) : '',
+    cpvNumber: String(c.cpvNumber ?? ''),
+    notes: String(c.notes ?? '')
+  });
+  // Simple spinner component
+  const Spinner = ({ className = '', size = 16 }: { className?: string; size?: number }) => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      className={className}
+      width={size}
+      height={size}
+    >
+      <circle cx="12" cy="12" r="10" strokeWidth="3" strokeOpacity="0.25" />
+      <path d="M22 12a10 10 0 0 0-10-10" strokeWidth="3" strokeLinecap="round" />
+    </svg>
+  );
   const [checks, setChecks] = useState<CheckRecord[]>([]);
   const [filteredChecks, setFilteredChecks] = useState<CheckRecord[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -56,21 +112,52 @@ export default function BouncedCheckManager() {
   const [touchedFields, setTouchedFields] = useState<Set<string>>(new Set());
   const [editErrors, setEditErrors] = useState<ValidationError[]>([]);
   const [editTouchedFields, setEditTouchedFields] = useState<Set<string>>(new Set());
+  // Loading / action states
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isAdding, setIsAdding] = useState<boolean>(false);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
+  const [updatingFollowUpId, setUpdatingFollowUpId] = useState<string | null>(null);
 
   useEffect(() => {
-    const savedChecks = localStorage.getItem('bouncedChecks');
-    if (savedChecks) {
-      setChecks(JSON.parse(savedChecks));
-    } else {
-      setChecks(initialData);
-      localStorage.setItem('bouncedChecks', JSON.stringify(initialData));
-    }
+    // Always load from Apps Script/Google Sheets (via API proxy)
+    const fetchChecks = async () => {
+      setIsLoading(true);
+      try {
+        const res = await fetch('/api/checks');
+        if (!res.ok) throw new Error('API fetch failed');
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          const normalized = data.map(normalizeCheck);
+          setChecks(normalized);
+          // Keep a local cache for offline reference
+          localStorage.setItem('bouncedChecks', JSON.stringify(normalized));
+          return;
+        }
+      } catch (err) {
+        // If API fails, show error but try to use local cache as fallback
+        console.error('Failed to fetch checks from API:', err);
+        const savedChecks = localStorage.getItem('bouncedChecks');
+        if (savedChecks) {
+          console.warn('Using stale local cache. Please refresh when connection is restored.');
+          try {
+            const parsed = JSON.parse(savedChecks);
+            setChecks(parsed.map(normalizeCheck));
+          } catch (e) {
+            setChecks([]);
+          }
+        } else {
+          setChecks([]);
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchChecks();
   }, []);
 
   useEffect(() => {
-    if (checks.length > 0) {
-      localStorage.setItem('bouncedChecks', JSON.stringify(checks));
-    }
     filterChecks();
   }, [checks, searchTerm, filterStatus]);
 
@@ -93,8 +180,9 @@ export default function BouncedCheckManager() {
     setFilteredChecks(filtered);
   };
 
-  const handleAddCheck = () => {
+  const handleAddCheck = async () => {
     setFormErrors([]);
+    setIsAdding(true);
 
     // Validate form data
     const validation = validateCheckRecord(formData);
@@ -128,17 +216,40 @@ export default function BouncedCheckManager() {
       notes: formData.notes || ''
     };
 
-    setChecks([...checks, newCheck]);
+    // Save to MongoDB—this is the source of truth
+    try {
+      const res = await fetch('/api/checks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newCheck)
+      });
+
+      if (!res.ok) throw new Error('API create failed');
+
+      const created = await res.json();
+      // Update UI and local cache with normalized data
+      setChecks(prev => {
+        const next = [...prev, normalizeCheck(created)];
+        localStorage.setItem('bouncedChecks', JSON.stringify(next));
+        return next;
+      });
+    } catch (err) {
+      console.error('Failed to save to MongoDB:', err);
+      alert('Error saving check. Please try again.');
+    }
+
     setShowAddModal(false);
     resetForm();
     setFormErrors([]);
     setTouchedFields(new Set());
+    setIsAdding(false);
   };
 
-  const handleUpdateCheck = () => {
+  const handleUpdateCheck = async () => {
     if (!selectedCheck) return;
 
     setEditErrors([]);
+    setIsSaving(true);
 
     // Validate form data
     const validation = validateCheckRecord(selectedCheck);
@@ -147,34 +258,99 @@ export default function BouncedCheckManager() {
       return;
     }
 
-    const updatedChecks = checks.map(check =>
-      check.id === selectedCheck.id ? selectedCheck : check
-    );
-    setChecks(updatedChecks);
+    try {
+      const payload = {
+        ...selectedCheck,
+        date: normalizeDateString(selectedCheck.date),
+        followUpDate: normalizeDateString(selectedCheck.followUpDate),
+        returnDate: selectedCheck.returnDate ? normalizeDateString(selectedCheck.returnDate) : '',
+        amount: Number(selectedCheck.amount) || 0
+      };
+
+      const res = await fetch(`/api/checks/${selectedCheck.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error('API update failed');
+      const updated = await res.json();
+      const normalized = normalizeCheck(updated);
+      setChecks(prev => {
+        const next = prev.map(c => c.id === normalized.id ? normalized : c);
+        localStorage.setItem('bouncedChecks', JSON.stringify(next));
+        return next;
+      });
+    } catch (err) {
+      console.error('Failed to update in MongoDB:', err);
+      alert('Error updating check. Please try again.');
+    }
+
+    setShowDetailModal(false);
+    setSelectedCheck(null);
+    setIsSaving(false);
+  };
+
+  const handleDeleteCheck = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this check record?')) return;
+    setIsDeleting(true);
+
+    try {
+      const res = await fetch(`/api/checks/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('API delete failed');
+      setChecks(prev => {
+        const next = prev.filter(check => check.id !== id);
+        localStorage.setItem('bouncedChecks', JSON.stringify(next));
+        return next;
+      });
+    } catch (err) {
+      console.error('Failed to delete from MongoDB:', err);
+      alert('Error deleting check. Please try again.');
+    } finally {
+      setIsDeleting(false);
+    }
+
     setShowDetailModal(false);
     setSelectedCheck(null);
   };
 
-  const handleDeleteCheck = (id: string) => {
-    if (confirm('Are you sure you want to delete this check record?')) {
-      setChecks(checks.filter(check => check.id !== id));
-      setShowDetailModal(false);
-      setSelectedCheck(null);
-    }
-  };
+  const updateFollowUpDate = async (checkId: string) => {
+    const target = checks.find(c => c.id === checkId);
+    if (!target) return;
+    const newFollow = format(addWeeks(new Date(normalizeDateString(target.followUpDate)), 2), 'yyyy-MM-dd');
+    const updated = {
+      ...target,
+      status: 'retrieved' as CheckRecord['status'],
+      followUpDate: newFollow
+    };
 
-  const updateFollowUpDate = (checkId: string) => {
-    const updatedChecks: CheckRecord[] = checks.map(check => {
-      if (check.id === checkId) {
-        return {
-          ...check,
-          status: 'retrieved' as CheckRecord['status'],
-          followUpDate: format(addWeeks(new Date(check.followUpDate), 2), 'yyyy-MM-dd')
-        };
-      }
-      return check;
-    });
-    setChecks(updatedChecks);
+    setUpdatingFollowUpId(checkId);
+    try {
+      const res = await fetch(`/api/checks/${checkId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...updated,
+          date: normalizeDateString(updated.date),
+          followUpDate: normalizeDateString(updated.followUpDate),
+          returnDate: updated.returnDate ? normalizeDateString(updated.returnDate) : '',
+          amount: Number(updated.amount) || 0
+        })
+      });
+
+      if (!res.ok) throw new Error('API update failed');
+      const updatedFromServer = await res.json();
+      const normalized = normalizeCheck(updatedFromServer);
+      setChecks(prev => {
+        const next = prev.map(c => c.id === checkId ? normalized : c);
+        localStorage.setItem('bouncedChecks', JSON.stringify(next));
+        return next;
+      });
+    } catch (err) {
+      console.error('Failed to update follow-up in MongoDB:', err);
+      alert('Error updating follow-up date. Please try again.');
+    } finally {
+      setUpdatingFollowUpId(null);
+    }
   };
 
   const resetForm = () => {
@@ -186,6 +362,7 @@ export default function BouncedCheckManager() {
       cpvNumber: ''
     });
   };
+  
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -260,6 +437,14 @@ export default function BouncedCheckManager() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 p-4 md:p-8">
+      {isLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/60 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-3">
+            <Spinner className="animate-spin text-primary" size={48} />
+            <div className="text-lg font-medium text-foreground">Loading data…</div>
+          </div>
+        </div>
+      )}
       <div className="max-w-7xl mx-auto space-y-8">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-6 bg-card rounded-xl shadow-lg border border-border">
           <div>
@@ -486,9 +671,19 @@ export default function BouncedCheckManager() {
                   variant="outline"
                   size="sm"
                   className="flex-1"
+                  disabled={updatingFollowUpId === check.id}
                 >
-                  <Calendar className="w-4 h-4 mr-2" />
-                  Follow-up
+                  {updatingFollowUpId === check.id ? (
+                    <>
+                      <Spinner className="animate-spin w-4 h-4 mr-2" size={16} />
+                      Updating...
+                    </>
+                  ) : (
+                    <>
+                      <Calendar className="w-4 h-4 mr-2" />
+                      Follow-up
+                    </>
+                  )}
                 </Button>
                 <Button
                   onClick={(e) => {
@@ -746,7 +941,14 @@ export default function BouncedCheckManager() {
                   Cancel
                 </Button>
                 <Button onClick={handleAddCheck} className="bg-primary text-primary-foreground">
-                  Add Check
+                  {isAdding ? (
+                    <>
+                      <Spinner className="animate-spin w-4 h-4 mr-2" size={16} />
+                      Saving...
+                    </>
+                  ) : (
+                    'Add Check'
+                  )}
                 </Button>
               </div>
             </CardContent>
@@ -962,8 +1164,16 @@ export default function BouncedCheckManager() {
                         variant="outline"
                         size="sm"
                         className="bg-background"
+                        disabled={updatingFollowUpId === selectedCheck.id}
                       >
-                        Schedule Next Follow-up
+                        {updatingFollowUpId === selectedCheck.id ? (
+                          <>
+                            <Spinner className="animate-spin w-4 h-4 mr-2" size={16} />
+                            Updating...
+                          </>
+                        ) : (
+                          'Schedule Next Follow-up'
+                        )}
                       </Button>
                     </div>
                   </CardContent>
@@ -972,10 +1182,18 @@ export default function BouncedCheckManager() {
 
               <div className="flex justify-between gap-3 pt-4">
                 <Button
-                  variant="destructive"
-                  onClick={() => handleDeleteCheck(selectedCheck.id)}
+                    variant="destructive"
+                    onClick={() => handleDeleteCheck(selectedCheck.id)}
+                    disabled={isDeleting}
                 >
-                  Delete
+                  {isDeleting ? (
+                    <>
+                      <Spinner className="animate-spin w-4 h-4 mr-2" size={16} />
+                      Deleting...
+                    </>
+                  ) : (
+                    'Delete'
+                  )}
                 </Button>
                 <div className="flex gap-3">
                   <Button
@@ -987,8 +1205,15 @@ export default function BouncedCheckManager() {
                   >
                     Cancel
                   </Button>
-                  <Button onClick={handleUpdateCheck} className="bg-primary text-primary-foreground">
-                    Save Changes
+                  <Button onClick={handleUpdateCheck} className="bg-primary text-primary-foreground" disabled={isSaving}>
+                    {isSaving ? (
+                      <>
+                        <Spinner className="animate-spin w-4 h-4 mr-2" size={16} />
+                        Saving...
+                      </>
+                    ) : (
+                      'Save Changes'
+                    )}
                   </Button>
                 </div>
               </div>
