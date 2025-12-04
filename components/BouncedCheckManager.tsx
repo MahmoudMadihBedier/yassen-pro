@@ -149,7 +149,6 @@ export default function BouncedCheckManager() {
         } else {
           setChecks([]);
         }
-      }
       } finally {
         setIsLoading(false);
       }
