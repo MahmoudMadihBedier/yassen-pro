@@ -77,6 +77,21 @@ export default function BouncedCheckManager() {
     cpvNumber: String(c.cpvNumber ?? ''),
     notes: String(c.notes ?? '')
   });
+  // Simple spinner component
+  const Spinner = ({ className = '', size = 16 }: { className?: string; size?: number }) => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      className={className}
+      width={size}
+      height={size}
+    >
+      <circle cx="12" cy="12" r="10" strokeWidth="3" strokeOpacity="0.25" />
+      <path d="M22 12a10 10 0 0 0-10-10" strokeWidth="3" strokeLinecap="round" />
+    </svg>
+  );
   const [checks, setChecks] = useState<CheckRecord[]>([]);
   const [filteredChecks, setFilteredChecks] = useState<CheckRecord[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -97,10 +112,17 @@ export default function BouncedCheckManager() {
   const [touchedFields, setTouchedFields] = useState<Set<string>>(new Set());
   const [editErrors, setEditErrors] = useState<ValidationError[]>([]);
   const [editTouchedFields, setEditTouchedFields] = useState<Set<string>>(new Set());
+  // Loading / action states
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isAdding, setIsAdding] = useState<boolean>(false);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
+  const [updatingFollowUpId, setUpdatingFollowUpId] = useState<string | null>(null);
 
   useEffect(() => {
     // Always load from Apps Script/Google Sheets (via API proxy)
     const fetchChecks = async () => {
+      setIsLoading(true);
       try {
         const res = await fetch('/api/checks');
         if (!res.ok) throw new Error('API fetch failed');
@@ -127,6 +149,9 @@ export default function BouncedCheckManager() {
         } else {
           setChecks([]);
         }
+      }
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -158,6 +183,7 @@ export default function BouncedCheckManager() {
 
   const handleAddCheck = async () => {
     setFormErrors([]);
+    setIsAdding(true);
 
     // Validate form data
     const validation = validateCheckRecord(formData);
@@ -217,12 +243,14 @@ export default function BouncedCheckManager() {
     resetForm();
     setFormErrors([]);
     setTouchedFields(new Set());
+    setIsAdding(false);
   };
 
   const handleUpdateCheck = async () => {
     if (!selectedCheck) return;
 
     setEditErrors([]);
+    setIsSaving(true);
 
     // Validate form data
     const validation = validateCheckRecord(selectedCheck);
@@ -260,10 +288,12 @@ export default function BouncedCheckManager() {
 
     setShowDetailModal(false);
     setSelectedCheck(null);
+    setIsSaving(false);
   };
 
   const handleDeleteCheck = async (id: string) => {
     if (!confirm('Are you sure you want to delete this check record?')) return;
+    setIsDeleting(true);
 
     try {
       const res = await fetch(`/api/checks/${id}`, { method: 'DELETE' });
@@ -276,6 +306,8 @@ export default function BouncedCheckManager() {
     } catch (err) {
       console.error('Failed to delete from MongoDB:', err);
       alert('Error deleting check. Please try again.');
+    } finally {
+      setIsDeleting(false);
     }
 
     setShowDetailModal(false);
@@ -285,12 +317,14 @@ export default function BouncedCheckManager() {
   const updateFollowUpDate = async (checkId: string) => {
     const target = checks.find(c => c.id === checkId);
     if (!target) return;
+    const newFollow = format(addWeeks(new Date(normalizeDateString(target.followUpDate)), 2), 'yyyy-MM-dd');
     const updated = {
       ...target,
       status: 'retrieved' as CheckRecord['status'],
-      followUpDate: format(addWeeks(new Date(normalizeDateString(target.followUpDate)), 2), 'yyyy-MM-dd')
+      followUpDate: newFollow
     };
 
+    setUpdatingFollowUpId(checkId);
     try {
       const res = await fetch(`/api/checks/${checkId}`, {
         method: 'PUT',
@@ -303,6 +337,7 @@ export default function BouncedCheckManager() {
           amount: Number(updated.amount) || 0
         })
       });
+
       if (!res.ok) throw new Error('API update failed');
       const updatedFromServer = await res.json();
       const normalized = normalizeCheck(updatedFromServer);
@@ -314,6 +349,8 @@ export default function BouncedCheckManager() {
     } catch (err) {
       console.error('Failed to update follow-up in MongoDB:', err);
       alert('Error updating follow-up date. Please try again.');
+    } finally {
+      setUpdatingFollowUpId(null);
     }
   };
 
@@ -326,6 +363,7 @@ export default function BouncedCheckManager() {
       cpvNumber: ''
     });
   };
+  
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -400,6 +438,14 @@ export default function BouncedCheckManager() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 p-4 md:p-8">
+      {isLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/60 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-3">
+            <Spinner className="animate-spin text-primary" size={48} />
+            <div className="text-lg font-medium text-foreground">Loading data…</div>
+          </div>
+        </div>
+      )}
       <div className="max-w-7xl mx-auto space-y-8">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-6 bg-card rounded-xl shadow-lg border border-border">
           <div>
@@ -626,9 +672,19 @@ export default function BouncedCheckManager() {
                   variant="outline"
                   size="sm"
                   className="flex-1"
+                  disabled={updatingFollowUpId === check.id}
                 >
-                  <Calendar className="w-4 h-4 mr-2" />
-                  Follow-up
+                  {updatingFollowUpId === check.id ? (
+                    <>
+                      <Spinner className="animate-spin w-4 h-4 mr-2" size={16} />
+                      Updating...
+                    </>
+                  ) : (
+                    <>
+                      <Calendar className="w-4 h-4 mr-2" />
+                      Follow-up
+                    </>
+                  )}
                 </Button>
                 <Button
                   onClick={(e) => {
@@ -886,7 +942,14 @@ export default function BouncedCheckManager() {
                   Cancel
                 </Button>
                 <Button onClick={handleAddCheck} className="bg-primary text-primary-foreground">
-                  Add Check
+                  {isAdding ? (
+                    <>
+                      <Spinner className="animate-spin w-4 h-4 mr-2" size={16} />
+                      Saving...
+                    </>
+                  ) : (
+                    'Add Check'
+                  )}
                 </Button>
               </div>
             </CardContent>
@@ -1102,8 +1165,16 @@ export default function BouncedCheckManager() {
                         variant="outline"
                         size="sm"
                         className="bg-background"
+                        disabled={updatingFollowUpId === selectedCheck.id}
                       >
-                        Schedule Next Follow-up
+                        {updatingFollowUpId === selectedCheck.id ? (
+                          <>
+                            <Spinner className="animate-spin w-4 h-4 mr-2" size={16} />
+                            Updating...
+                          </>
+                        ) : (
+                          'Schedule Next Follow-up'
+                        )}
                       </Button>
                     </div>
                   </CardContent>
@@ -1112,10 +1183,18 @@ export default function BouncedCheckManager() {
 
               <div className="flex justify-between gap-3 pt-4">
                 <Button
-                  variant="destructive"
-                  onClick={() => handleDeleteCheck(selectedCheck.id)}
+                    variant="destructive"
+                    onClick={() => handleDeleteCheck(selectedCheck.id)}
+                    disabled={isDeleting}
                 >
-                  Delete
+                  {isDeleting ? (
+                    <>
+                      <Spinner className="animate-spin w-4 h-4 mr-2" size={16} />
+                      Deleting...
+                    </>
+                  ) : (
+                    'Delete'
+                  )}
                 </Button>
                 <div className="flex gap-3">
                   <Button
@@ -1127,8 +1206,15 @@ export default function BouncedCheckManager() {
                   >
                     Cancel
                   </Button>
-                  <Button onClick={handleUpdateCheck} className="bg-primary text-primary-foreground">
-                    Save Changes
+                  <Button onClick={handleUpdateCheck} className="bg-primary text-primary-foreground" disabled={isSaving}>
+                    {isSaving ? (
+                      <>
+                        <Spinner className="animate-spin w-4 h-4 mr-2" size={16} />
+                        Saving...
+                      </>
+                    ) : (
+                      'Save Changes'
+                    )}
                   </Button>
                 </div>
               </div>
