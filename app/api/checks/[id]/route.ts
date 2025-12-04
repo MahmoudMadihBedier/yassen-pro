@@ -1,60 +1,77 @@
 import { NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/mongodb';
-import { ObjectId } from 'mongodb';
+
+// Google Apps Script deployment URL
+const APPS_SCRIPT_URL = process.env.GOOGLE_APPS_SCRIPT_URL || '';
+
+async function callAppsScript(method: string, path: string, body?: any) {
+  if (!APPS_SCRIPT_URL) {
+    return { error: 'Google Apps Script URL not configured' };
+  }
+
+  try {
+    const response = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ method, path, body })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Apps Script error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (err) {
+    console.error('Apps Script call failed:', err);
+    throw err;
+  }
+}
 
 export async function PUT(request: Request, { params }: { params: { id: string } }) {
   try {
     const { id } = params;
     const updates = await request.json();
-    const { db } = await connectToDatabase();
-    // Update by MongoDB _id (ObjectId) when possible
-    const query: any = ObjectId.isValid(id) ? { _id: new ObjectId(id) } : { _id: id };
-    await db.collection('checks').updateOne(query, { $set: updates });
-    const updated = await db.collection('checks').findOne(query);
-    if (!updated) {
-      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    const updated = await callAppsScript('PUT', `/checks/${id}`, updates);
+    
+    if (updated.error) {
+      return NextResponse.json(updated, { status: 404 });
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { _id, ...rest } = updated as any;
-    return NextResponse.json({ ...rest, _id });
+    
+    return NextResponse.json(updated);
   } catch (err) {
-    console.error('PUT /api/checks/[id] error', err);
-    const msg = (err as Error).message || 'Failed to update check';
-    const status = msg.includes('MONGODB_URI') || msg.includes('Mongo') ? 503 : 400;
-    return NextResponse.json({ error: msg }, { status });
+    console.error('PUT /api/checks/[id] error:', err);
+    return NextResponse.json({ error: 'Failed to update check' }, { status: 500 });
   }
 }
 
 export async function DELETE(_request: Request, { params }: { params: { id: string } }) {
   try {
     const { id } = params;
-    const { db } = await connectToDatabase();
-    // Delete by MongoDB _id (ObjectId) when possible
-    const queryDel: any = ObjectId.isValid(id) ? { _id: new ObjectId(id) } : { _id: id };
-    await db.collection('checks').deleteOne(queryDel);
-    return NextResponse.json({ success: true });
+    const result = await callAppsScript('DELETE', `/checks/${id}`);
+    
+    if (result.error) {
+      return NextResponse.json(result, { status: 404 });
+    }
+    
+    return NextResponse.json(result);
   } catch (err) {
-    console.error('DELETE /api/checks/[id] error', err);
-    const msg = (err as Error).message || 'Failed to delete check';
-    const status = msg.includes('MONGODB_URI') || msg.includes('Mongo') ? 503 : 400;
-    return NextResponse.json({ error: msg }, { status });
+    console.error('DELETE /api/checks/[id] error:', err);
+    return NextResponse.json({ error: 'Failed to delete check' }, { status: 500 });
   }
 }
 
 export async function GET(_request: Request, { params }: { params: { id: string } }) {
   try {
     const { id } = params;
-    const { db } = await connectToDatabase();
-    const queryGet: any = ObjectId.isValid(id) ? { _id: new ObjectId(id) } : { _id: id };
-    const check = await db.collection('checks').findOne(queryGet);
-    if (!check) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { _id, ...rest } = check as any;
-    return NextResponse.json({ ...rest, id: String(_id) });
+    const check = await callAppsScript('GET', `/checks/${id}`);
+    
+    if (check.error) {
+      return NextResponse.json(check, { status: 404 });
+    }
+    
+    return NextResponse.json(check);
   } catch (err) {
-    console.error('GET /api/checks/[id] error', err);
-    const msg = (err as Error).message || 'Failed to fetch check';
-    const status = msg.includes('MONGODB_URI') || msg.includes('Mongo') ? 503 : 400;
-    return NextResponse.json({ error: msg }, { status });
+    console.error('GET /api/checks/[id] error:', err);
+    return NextResponse.json({ error: 'Failed to fetch check' }, { status: 500 });
   }
 }
