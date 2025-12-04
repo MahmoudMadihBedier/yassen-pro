@@ -33,8 +33,6 @@ interface CheckRecord {
   notes: string;
 }
 
-const initialData: CheckRecord[] = [];
-
 export default function BouncedCheckManager() {
   const [checks, setChecks] = useState<CheckRecord[]>([]);
   const [filteredChecks, setFilteredChecks] = useState<CheckRecord[]>([]);
