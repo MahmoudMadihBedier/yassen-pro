@@ -7,7 +7,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     const updates = await request.json();
     const { db } = await connectToDatabase();
     // Update by _id, not id field
-    const result = await db.collection('checks').updateOne({ _id: id }, { $set: updates });
+    await db.collection('checks').updateOne({ _id: id }, { $set: updates });
     const updated = await db.collection('checks').findOne({ _id: id });
     if (!updated) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
