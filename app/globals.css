@@ -1,59 +1,88 @@
-/* stylelint-disable */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ----------------------------------------------------
+   LIGHT & DARK MODE COLOR SYSTEM (Dubai Real Estate)
+---------------------------------------------------- */
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 3.6%;
+    /* Light Theme */
+    --background: 210 40% 98%;
+    --foreground: 222.2 84% 4.9%;
+
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.6%;
+    --card-foreground: 222.2 84% 4.9%;
+
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.6%;
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
-    --accent: 0 84.2% 60.2%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --primary: 0 0% 9%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 96.1%;
-    --secondary-foreground: 0 0% 9%;
-    --ring: 0 0% 3.6%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: 221.2 83.2% 53.3%;          /* Modern Dubai Blue */
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 45 100% 52%;                 /* Luxury Gold */
+    --accent-foreground: 0 0% 0%;
+
+    --destructive: 0 84% 63%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+
+    --ring: 221.2 83.2% 53.3%;
+
+    --radius: 0.5rem;
   }
 
   .dark {
-    --background: 0 0% 3.6%;
-    --foreground: 0 0% 98.2%;
-    --card: 0 0% 3.6%;
-    --card-foreground: 0 0% 98.2%;
-    --popover: 0 0% 3.6%;
-    --popover-foreground: 0 0% 98.2%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 84.2% 60.2%;
-    --accent-foreground: 0 0% 9%;
-    --destructive: 0 80.6% 49.4%;
-    --destructive-foreground: 0 0% 98.2%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --primary: 0 0% 98.2%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98.2%;
-    --ring: 0 84.2% 60.2%;
+    /* Dark Theme (Premium Dubai Real Estate) */
+    --background: 220 14% 6%;              /* Near black */
+    --foreground: 210 20% 98%;
+
+    --card: 220 14% 8%;
+    --card-foreground: 210 20% 98%;
+
+    --popover: 220 14% 8%;
+    --popover-foreground: 210 20% 98%;
+
+    --primary: 215 100% 65%;               /* Strong blue for dark mode */
+    --primary-foreground: 210 20% 98%;
+
+    --secondary: 220 14% 14%;
+    --secondary-foreground: 210 20% 98%;
+
+    --muted: 220 14% 12%;
+    --muted-foreground: 215 16% 70%;
+
+    --accent: 45 100% 60%;                 /* Brighter gold for dark mode */
+    --accent-foreground: 0 0% 10%;
+
+    --destructive: 0 84% 63%;
+    --destructive-foreground: 210 20% 98%;
+
+    --border: 220 14% 20%;
+    --input: 220 14% 20%;
+
+    --ring: 215 100% 65%;
   }
 }
 
+/* ----------------------------------------------------
+   BASE STYLES
+---------------------------------------------------- */
 @layer base {
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
