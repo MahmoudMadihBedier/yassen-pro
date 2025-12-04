@@ -8,7 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format, addWeeks, isPast, differenceInDays } from 'date-fns';
-import { Search, Plus, Phone, Mail, Calendar, DollarSign, AlertCircle, CheckCircle, Clock, Building2, Hash, User, FileText } from 'lucide-react';
+import { Search, Plus, Phone, Mail, Calendar, DollarSign, AlertCircle, CheckCircle, Clock, Building2, Hash, User, FileText, LogOut } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { ValidationAlert, FieldError } from '@/components/ValidationAlert';
+import { validateCheckRecord, ValidationError } from '@/lib/validation';
 
 interface CheckRecord {
   id: string;
@@ -20,11 +23,13 @@ interface CheckRecord {
   building: string;
   unitNumber: string;
   paymentWay: string;
-  status: 'bounced' | 'retrieved' | 'pending' | 'resolved';
+  status: 'bounced' | 'retrieved' | 'pending' | 'resolved' | 'deal_close' | 'partial_paid';
   staff: string;
   email: string;
   phone: string;
   followUpDate: string;
+  returnDate?: string;
+  cpvNumber?: string;
   notes: string;
 }
 
@@ -537,8 +542,15 @@ export default function BouncedCheckManager() {
   const [formData, setFormData] = useState<Partial<CheckRecord>>({
     date: format(new Date(), 'yyyy-MM-dd'),
     status: 'bounced',
-    followUpDate: format(addWeeks(new Date(), 2), 'yyyy-MM-dd')
+    followUpDate: format(addWeeks(new Date(), 2), 'yyyy-MM-dd'),
+    returnDate: format(new Date(), 'yyyy-MM-dd'),
+    cpvNumber: ''
   });
+  const [formErrors, setFormErrors] = useState<ValidationError[]>([]);
+  const [generalError, setGeneralError] = useState('');
+  const [touchedFields, setTouchedFields] = useState<Set<string>>(new Set());
+  const [editErrors, setEditErrors] = useState<ValidationError[]>([]);
+  const [editTouchedFields, setEditTouchedFields] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const savedChecks = localStorage.getItem('bouncedChecks');
@@ -577,10 +589,20 @@ export default function BouncedCheckManager() {
   };
 
   const handleAddCheck = () => {
-    if (!formData.name || !formData.amount || !formData.checkNumber) {
-      alert('Please fill in all required fields');
+    setFormErrors([]);
+    setGeneralError('');
+
+    // Validate form data
+    const validation = validateCheckRecord(formData);
+    if (!validation.isValid) {
+      setFormErrors(validation.errors);
       return;
     }
+
+    // compute follow-up date from returnDate (+14 days) if provided
+    const computedFollowUp = formData.returnDate
+      ? format(addWeeks(new Date(formData.returnDate), 2), 'yyyy-MM-dd')
+      : formData.followUpDate || format(addWeeks(new Date(), 2), 'yyyy-MM-dd');
 
     const newCheck: CheckRecord = {
       id: Date.now().toString(),
@@ -596,17 +618,30 @@ export default function BouncedCheckManager() {
       staff: formData.staff || '',
       email: formData.email || '',
       phone: formData.phone || '',
-      followUpDate: formData.followUpDate || format(addWeeks(new Date(), 2), 'yyyy-MM-dd'),
+      followUpDate: computedFollowUp,
+      returnDate: formData.returnDate || undefined,
+      cpvNumber: formData.cpvNumber || '',
       notes: formData.notes || ''
     };
 
     setChecks([...checks, newCheck]);
     setShowAddModal(false);
     resetForm();
+    setFormErrors([]);
+    setTouchedFields(new Set());
   };
 
   const handleUpdateCheck = () => {
     if (!selectedCheck) return;
+
+    setEditErrors([]);
+
+    // Validate form data
+    const validation = validateCheckRecord(selectedCheck);
+    if (!validation.isValid) {
+      setEditErrors(validation.errors);
+      return;
+    }
 
     const updatedChecks = checks.map(check =>
       check.id === selectedCheck.id ? selectedCheck : check
@@ -625,10 +660,11 @@ export default function BouncedCheckManager() {
   };
 
   const updateFollowUpDate = (checkId: string) => {
-    const updatedChecks = checks.map(check => {
+    const updatedChecks: CheckRecord[] = checks.map(check => {
       if (check.id === checkId) {
         return {
           ...check,
+          status: 'retrieved' as CheckRecord['status'],
           followUpDate: format(addWeeks(new Date(check.followUpDate), 2), 'yyyy-MM-dd')
         };
       }
@@ -641,7 +677,9 @@ export default function BouncedCheckManager() {
     setFormData({
       date: format(new Date(), 'yyyy-MM-dd'),
       status: 'bounced',
-      followUpDate: format(addWeeks(new Date(), 2), 'yyyy-MM-dd')
+      followUpDate: format(addWeeks(new Date(), 2), 'yyyy-MM-dd'),
+      returnDate: format(new Date(), 'yyyy-MM-dd'),
+      cpvNumber: ''
     });
   };
 
@@ -651,6 +689,8 @@ export default function BouncedCheckManager() {
       case 'retrieved': return 'bg-primary text-primary-foreground';
       case 'pending': return 'bg-secondary text-secondary-foreground';
       case 'resolved': return 'bg-accent text-accent-foreground';
+      case 'deal_close': return 'bg-primary text-primary-foreground';
+      case 'partial_paid': return 'bg-secondary text-secondary-foreground';
       default: return 'bg-muted text-muted-foreground';
     }
   };
@@ -661,6 +701,8 @@ export default function BouncedCheckManager() {
       case 'retrieved': return <CheckCircle className="w-4 h-4" />;
       case 'pending': return <Clock className="w-4 h-4" />;
       case 'resolved': return <CheckCircle className="w-4 h-4" />;
+      case 'deal_close': return <CheckCircle className="w-4 h-4" />;
+      case 'partial_paid': return <CheckCircle className="w-4 h-4" />;
       default: return <Clock className="w-4 h-4" />;
     }
   };
@@ -698,6 +740,20 @@ export default function BouncedCheckManager() {
     setShowContactModal(false);
   };
 
+  const { user, logout } = useAuth();
+
+  const getFieldError = (fieldName: string, errors: ValidationError[]): string | undefined => {
+    return errors.find(e => e.field === fieldName)?.message;
+  };
+
+  const handleFieldBlur = (fieldName: string) => {
+    setTouchedFields(prev => new Set([...prev, fieldName]));
+  };
+
+  const handleEditFieldBlur = (fieldName: string) => {
+    setEditTouchedFields(prev => new Set([...prev, fieldName]));
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 p-4 md:p-8">
       <div className="max-w-7xl mx-auto space-y-8">
@@ -708,27 +764,45 @@ export default function BouncedCheckManager() {
             </h1>
             <p className="text-muted-foreground mt-2 text-lg">Track and manage bounced checks with automated follow-ups</p>
           </div>
-          <div className="flex gap-3 items-center">
-            <div className="relative">
+          <div className="flex flex-col gap-3 items-end">
+            <div className="flex gap-3 items-center">
+              <div className="relative">
+                <Button 
+                  onClick={() => setShowNotificationModal(true)} 
+                  className="relative bg-accent text-accent-foreground hover:bg-accent/90 shadow-md hover:shadow-lg transition-all"
+                >
+                  <AlertCircle className="w-5 h-5" />
+                  {notificationChecks.length > 0 && (
+                    <span className="absolute -top-2 -right-2 bg-destructive text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
+                      {notificationChecks.length}
+                    </span>
+                  )}
+                </Button>
+              </div>
               <Button 
-                onClick={() => setShowNotificationModal(true)} 
-                className="relative bg-accent text-accent-foreground hover:bg-accent/90 shadow-md hover:shadow-lg transition-all"
+                onClick={() => setShowAddModal(true)} 
+                className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-md hover:shadow-lg transition-all"
               >
-                <AlertCircle className="w-5 h-5" />
-                {notificationChecks.length > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-destructive text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
-                    {notificationChecks.length}
-                  </span>
-                )}
+                <Plus className="w-4 h-4 mr-2" />
+                Add New Check
+              </Button>
+              <Button 
+                onClick={logout}
+                variant="outline"
+                className="hover:bg-destructive/10 border-destructive/30"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Logout
               </Button>
             </div>
-            <Button 
-              onClick={() => setShowAddModal(true)} 
-              className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-md hover:shadow-lg transition-all"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add New Check
-            </Button>
+            {user && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-primary/10 rounded-lg border border-primary/20">
+                <User className="w-4 h-4 text-primary" />
+                <span className="text-sm font-semibold text-primary">
+                  {user.username}
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -946,6 +1020,14 @@ export default function BouncedCheckManager() {
               <CardDescription>Enter the details of the bounced check</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              {formErrors.length > 0 && (
+                <ValidationAlert
+                  type="error"
+                  title="Validation Error"
+                  errors={formErrors}
+                  onDismiss={() => setFormErrors([])}
+                />
+              )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Tenant Name *</Label>
@@ -953,8 +1035,11 @@ export default function BouncedCheckManager() {
                     id="name"
                     value={formData.name || ''}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onBlur={() => handleFieldBlur('name')}
                     placeholder="Enter tenant name"
+                    className={getFieldError('name', formErrors) && touchedFields.has('name') ? 'border-destructive' : ''}
                   />
+                  <FieldError error={getFieldError('name', formErrors)} touched={touchedFields.has('name')} />
                 </div>
 
                 <div className="space-y-2">
@@ -963,8 +1048,11 @@ export default function BouncedCheckManager() {
                     id="building"
                     value={formData.building || ''}
                     onChange={(e) => setFormData({ ...formData, building: e.target.value })}
+                    onBlur={() => handleFieldBlur('building')}
                     placeholder="Enter building name"
+                    className={getFieldError('building', formErrors) && touchedFields.has('building') ? 'border-destructive' : ''}
                   />
+                  <FieldError error={getFieldError('building', formErrors)} touched={touchedFields.has('building')} />
                 </div>
 
                 <div className="space-y-2">
@@ -1082,10 +1170,36 @@ export default function BouncedCheckManager() {
                       <SelectItem value="bounced">Bounced</SelectItem>
                       <SelectItem value="pending">Pending</SelectItem>
                       <SelectItem value="retrieved">Retrieved</SelectItem>
+                      <SelectItem value="deal_close">Deal Close</SelectItem>
+                      <SelectItem value="partial_paid">Partial Paid</SelectItem>
                       <SelectItem value="resolved">Resolved</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="returnDate">Return Date</Label>
+                  <Input
+                    id="returnDate"
+                    type="date"
+                    value={formData.returnDate || ''}
+                    onChange={(e) => setFormData({ ...formData, returnDate: e.target.value })}
+                  />
+                </div>
+
+                {(formData.status === 'deal_close' || formData.status === 'partial_paid') && (
+                  <div className="space-y-2">
+                    <Label htmlFor="cpvNumber">CPV Number</Label>
+                    <Input
+                      id="cpvNumber"
+                      value={formData.cpvNumber || ''}
+                      onChange={(e) => setFormData({ ...formData, cpvNumber: e.target.value })}
+                      placeholder="Enter CPV number"
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -1240,6 +1354,8 @@ export default function BouncedCheckManager() {
                       <SelectItem value="bounced">Bounced</SelectItem>
                       <SelectItem value="pending">Pending</SelectItem>
                       <SelectItem value="retrieved">Retrieved</SelectItem>
+                      <SelectItem value="deal_close">Deal Close</SelectItem>
+                      <SelectItem value="partial_paid">Partial Paid</SelectItem>
                       <SelectItem value="resolved">Resolved</SelectItem>
                     </SelectContent>
                   </Select>
@@ -1264,6 +1380,27 @@ export default function BouncedCheckManager() {
                     onChange={(e) => setSelectedCheck({ ...selectedCheck, followUpDate: e.target.value })}
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-returnDate">Return Date</Label>
+                  <Input
+                    id="edit-returnDate"
+                    type="date"
+                    value={selectedCheck.returnDate || ''}
+                    onChange={(e) => setSelectedCheck({ ...selectedCheck, returnDate: e.target.value })}
+                  />
+                </div>
+
+                {(selectedCheck.status === 'deal_close' || selectedCheck.status === 'partial_paid') && (
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-cpvNumber">CPV Number</Label>
+                    <Input
+                      id="edit-cpvNumber"
+                      value={selectedCheck.cpvNumber || ''}
+                      onChange={(e) => setSelectedCheck({ ...selectedCheck, cpvNumber: e.target.value })}
+                      placeholder="Enter CPV number"
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
