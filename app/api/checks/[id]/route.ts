@@ -6,9 +6,15 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     const { id } = params;
     const updates = await request.json();
     const { db } = await connectToDatabase();
-    await db.collection('checks').updateOne({ id }, { $set: updates });
-    const updated = await db.collection('checks').findOne({ id });
-    return NextResponse.json(updated || { ...updates, id });
+    // Update by _id, not id field
+    const result = await db.collection('checks').updateOne({ _id: id }, { $set: updates });
+    const updated = await db.collection('checks').findOne({ _id: id });
+    if (!updated) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { _id, ...rest } = updated as any;
+    return NextResponse.json({ ...rest, _id });
   } catch (err) {
     console.error('PUT /api/checks/[id] error', err);
     const msg = (err as Error).message || 'Failed to update check';
@@ -21,7 +27,8 @@ export async function DELETE(_request: Request, { params }: { params: { id: stri
   try {
     const { id } = params;
     const { db } = await connectToDatabase();
-    await db.collection('checks').deleteOne({ id });
+    // Delete by _id, not id field
+    await db.collection('checks').deleteOne({ _id: id });
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error('DELETE /api/checks/[id] error', err);
@@ -35,9 +42,11 @@ export async function GET(_request: Request, { params }: { params: { id: string 
   try {
     const { id } = params;
     const { db } = await connectToDatabase();
-    const check = await db.collection('checks').findOne({ id });
+    const check = await db.collection('checks').findOne({ _id: id });
     if (!check) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-    return NextResponse.json(check);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { _id, ...rest } = check as any;
+    return NextResponse.json({ ...rest, _id });
   } catch (err) {
     console.error('GET /api/checks/[id] error', err);
     const msg = (err as Error).message || 'Failed to fetch check';
