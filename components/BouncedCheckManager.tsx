@@ -532,6 +532,7 @@ export default function BouncedCheckManager() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [selectedCheck, setSelectedCheck] = useState<CheckRecord | null>(null);
   const [formData, setFormData] = useState<Partial<CheckRecord>>({
     date: format(new Date(), 'yyyy-MM-dd'),
@@ -668,6 +669,16 @@ export default function BouncedCheckManager() {
     return isPast(new Date(followUpDate));
   };
 
+  const getNotificationChecks = () => {
+    return checks.filter(check => 
+      check.status !== 'resolved' && 
+      (isPast(new Date(check.followUpDate)) || 
+       differenceInDays(new Date(check.followUpDate), new Date()) <= 3)
+    );
+  };
+
+  const notificationChecks = getNotificationChecks();
+
   const stats = {
     total: checks.length,
     bounced: checks.filter(c => c.status === 'bounced').length,
@@ -697,13 +708,28 @@ export default function BouncedCheckManager() {
             </h1>
             <p className="text-muted-foreground mt-2 text-lg">Track and manage bounced checks with automated follow-ups</p>
           </div>
-          <Button 
-            onClick={() => setShowAddModal(true)} 
-            className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-md hover:shadow-lg transition-all"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Add New Check
-          </Button>
+          <div className="flex gap-3 items-center">
+            <div className="relative">
+              <Button 
+                onClick={() => setShowNotificationModal(true)} 
+                className="relative bg-accent text-accent-foreground hover:bg-accent/90 shadow-md hover:shadow-lg transition-all"
+              >
+                <AlertCircle className="w-5 h-5" />
+                {notificationChecks.length > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-destructive text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
+                    {notificationChecks.length}
+                  </span>
+                )}
+              </Button>
+            </div>
+            <Button 
+              onClick={() => setShowAddModal(true)} 
+              className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-md hover:shadow-lg transition-all"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add New Check
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -1340,6 +1366,106 @@ export default function BouncedCheckManager() {
                   Send Message
                 </Button>
               </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {showNotificationModal && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <Card className="w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+            <CardHeader className="border-b border-border">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <AlertCircle className="w-6 h-6 text-accent" />
+                    Follow-up Notifications
+                  </CardTitle>
+                  <CardDescription>Checks with approaching or overdue follow-up dates</CardDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowNotificationModal(false)}
+                >
+                  ✕
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-4">
+              {notificationChecks.length === 0 ? (
+                <div className="text-center py-8">
+                  <CheckCircle className="w-12 h-12 text-primary mx-auto mb-3" />
+                  <p className="text-muted-foreground">No notifications. All follow-ups are on track!</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {notificationChecks.map((check) => {
+                    const daysUntil = differenceInDays(new Date(check.followUpDate), new Date());
+                    const isOverdue = daysUntil < 0;
+                    
+                    return (
+                      <div
+                        key={check.id}
+                        onClick={() => {
+                          setSelectedCheck(check);
+                          setShowNotificationModal(false);
+                          setShowDetailModal(true);
+                        }}
+                        className={`p-4 rounded-lg border-2 cursor-pointer transition-all hover:shadow-md ${
+                          isOverdue
+                            ? 'border-destructive bg-destructive/5 hover:bg-destructive/10'
+                            : 'border-accent bg-accent/5 hover:bg-accent/10'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <h4 className="font-bold text-foreground">{check.name}</h4>
+                              <span className={`text-xs font-bold px-2 py-1 rounded ${
+                                isOverdue
+                                  ? 'bg-destructive text-destructive-foreground'
+                                  : 'bg-accent text-accent-foreground'
+                              }`}>
+                                {isOverdue ? `Overdue by ${Math.abs(daysUntil)} days` : `Due in ${daysUntil} days`}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm text-muted-foreground">
+                              <div className="flex items-center gap-1">
+                                <Hash className="w-3 h-3" />
+                                Check #{check.checkNumber}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <DollarSign className="w-3 h-3" />
+                                AED {check.amount.toLocaleString()}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Building2 className="w-3 h-3" />
+                                {check.building}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Calendar className="w-3 h-3" />
+                                {format(new Date(check.followUpDate), 'MMM dd, yyyy')}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                {check.status}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            {isOverdue ? (
+                              <AlertCircle className="w-6 h-6 text-destructive" />
+                            ) : (
+                              <Clock className="w-6 h-6 text-accent" />
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
