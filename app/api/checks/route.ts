@@ -7,25 +7,23 @@ export async function GET() {
     const checks = await db.collection('checks').find({}).toArray();
     return NextResponse.json(checks);
   } catch (err) {
-    console.warn('GET /api/checks warning - MongoDB unavailable, returning empty array:', (err as Error).message);
-    // Return empty array to signal localStorage should be used
-    return NextResponse.json([], { status: 200 });
+    console.error('GET /api/checks error - MongoDB unavailable:', (err as Error).message);
+    // Fail loudly so clients know the database is required
+    return NextResponse.json({ error: 'MongoDB unavailable' }, { status: 503 });
   }
 }
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    try {
-      const { db } = await connectToDatabase();
-      await db.collection('checks').insertOne(body);
-    } catch (dbErr) {
-      console.warn('POST /api/checks warning - MongoDB unavailable:', (dbErr as Error).message);
-      // Fall through: return the data anyway, frontend will persist to localStorage
-    }
+    const { db } = await connectToDatabase();
+    await db.collection('checks').insertOne(body);
     return NextResponse.json(body, { status: 201 });
   } catch (err) {
     console.error('POST /api/checks error', err);
-    return NextResponse.json({ error: 'Failed to create check' }, { status: 400 });
+    // Differentiate DB unavailable vs bad request
+    const msg = (err as Error).message || 'Failed to create check';
+    const status = msg.includes('MONGODB_URI') || msg.includes('Mongo') ? 503 : 400;
+    return NextResponse.json({ error: msg }, { status });
   }
 }
