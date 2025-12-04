@@ -8,7 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format, addWeeks, isPast, differenceInDays } from 'date-fns';
-import { Search, Plus, Phone, Mail, Calendar, DollarSign, AlertCircle, CheckCircle, Clock, Building2, Hash, User, FileText } from 'lucide-react';
+import { Search, Plus, Phone, Mail, Calendar, DollarSign, AlertCircle, CheckCircle, Clock, Building2, Hash, User, FileText, LogOut } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { ValidationAlert, FieldError } from '@/components/ValidationAlert';
+import { validateCheckRecord, ValidationError } from '@/lib/validation';
 
 interface CheckRecord {
   id: string;
@@ -20,509 +23,17 @@ interface CheckRecord {
   building: string;
   unitNumber: string;
   paymentWay: string;
-  status: 'bounced' | 'retrieved' | 'pending' | 'resolved';
+  status: 'bounced' | 'retrieved' | 'pending' | 'resolved' | 'deal_close' | 'partial_paid';
   staff: string;
   email: string;
   phone: string;
   followUpDate: string;
+  returnDate?: string;
+  cpvNumber?: string;
   notes: string;
 }
 
-const initialData: CheckRecord[] = [
-  {
-    id: '1',
-    date: '2024-09-04',
-    checkNumber: '26',
-    reason: 'Insufficient Funds',
-    amount: 40000,
-    name: 'Raad Bandar Khudhair Alajwadi',
-    building: 'KARAMA',
-    unitNumber: '',
-    paymentWay: '',
-    status: 'bounced',
-    staff: '',
-    email: 'raad@example.com',
-    phone: '+971 50 123 4567',
-    followUpDate: '2024-09-18',
-    notes: ''
-  },
-  {
-    id: '2',
-    date: '2024-10-03',
-    checkNumber: '6',
-    reason: 'Insufficient Funds - PDC Inheritance',
-    amount: 7300,
-    name: 'Martin Royal',
-    building: 'PLOT125',
-    unitNumber: '',
-    paymentWay: '',
-    status: 'bounced',
-    staff: '',
-    email: 'martin@example.com',
-    phone: '+971 50 234 5678',
-    followUpDate: '2024-10-17',
-    notes: ''
-  },
-  {
-    id: '3',
-    date: '2024-10-22',
-    checkNumber: '7',
-    reason: 'Insufficient Funds - PDC Inheritance',
-    amount: 7300,
-    name: 'Martin Royal',
-    building: 'PLOT125',
-    unitNumber: '',
-    paymentWay: '',
-    status: 'pending',
-    staff: '',
-    email: 'martin@example.com',
-    phone: '+971 50 234 5678',
-    followUpDate: '2024-11-05',
-    notes: ''
-  },
-  {
-    id: '4',
-    date: '2024-10-30',
-    checkNumber: '19',
-    reason: 'Insufficient Funds',
-    amount: 10225,
-    name: 'Aref Abdullah',
-    building: 'MAHA C',
-    unitNumber: '808',
-    paymentWay: 'Pending payment and vacating',
-    status: 'pending',
-    staff: 'alyazyah',
-    email: 'aref@example.com',
-    phone: '+971 50 345 6789',
-    followUpDate: '2024-11-13',
-    notes: ''
-  },
-  {
-    id: '5',
-    date: '2024-10-30',
-    checkNumber: '500009',
-    reason: 'Insufficient Balance',
-    amount: 9713,
-    name: 'Hashem Zayed Ali',
-    building: 'AJMAN',
-    unitNumber: '6,7',
-    paymentWay: '',
-    status: 'bounced',
-    staff: 'AFZIRA',
-    email: 'hashem@example.com',
-    phone: '+971 50 456 7890',
-    followUpDate: '2024-11-13',
-    notes: ''
-  },
-  {
-    id: '6',
-    date: '2024-11-30',
-    checkNumber: '28',
-    reason: 'Insufficient Funds',
-    amount: 148000,
-    name: 'Raad Bandar Khudhair Alajwadi',
-    building: 'KARAMA',
-    unitNumber: '',
-    paymentWay: '',
-    status: 'bounced',
-    staff: '',
-    email: 'raad@example.com',
-    phone: '+971 50 123 4567',
-    followUpDate: '2024-12-14',
-    notes: ''
-  },
-  {
-    id: '7',
-    date: '2024-12-27',
-    checkNumber: '919338',
-    reason: 'Closed Account',
-    amount: 6150,
-    name: 'Ramashdeh Wesam',
-    building: 'OMNIA',
-    unitNumber: '',
-    paymentWay: 'Not Paid',
-    status: 'pending',
-    staff: 'afrah',
-    email: 'ramashdeh@example.com',
-    phone: '+971 50 567 8901',
-    followUpDate: '2025-01-10',
-    notes: ''
-  },
-  {
-    id: '8',
-    date: '2025-01-01',
-    checkNumber: '2',
-    reason: 'Insufficient Balance',
-    amount: 10750,
-    name: 'Eissa',
-    building: 'AMHC',
-    unitNumber: '1710_A',
-    paymentWay: 'Will pay at end of Oct',
-    status: 'pending',
-    staff: '',
-    email: 'eissa@example.com',
-    phone: '+971 50 678 9012',
-    followUpDate: '2025-01-15',
-    notes: ''
-  },
-  {
-    id: '9',
-    date: '2025-01-10',
-    checkNumber: '2',
-    reason: 'Not Authorized Signature',
-    amount: 63000,
-    name: 'Safety Access Road - Mutaz Jamil A Alatrash',
-    building: 'OMNY',
-    unitNumber: '1403',
-    paymentWay: 'Not Paid',
-    status: 'bounced',
-    staff: 'afrah',
-    email: 'mutaz@example.com',
-    phone: '+971 50 789 0123',
-    followUpDate: '2025-01-24',
-    notes: ''
-  },
-  {
-    id: '10',
-    date: '2025-02-01',
-    checkNumber: '700092',
-    reason: 'Closed Account',
-    amount: 15000,
-    name: 'Eighty Eight',
-    building: 'P185',
-    unitNumber: '303',
-    paymentWay: 'Hafez Abdulkarem Albatman',
-    status: 'bounced',
-    staff: '',
-    email: 'eightyeight@example.com',
-    phone: '+971 50 890 1234',
-    followUpDate: '2025-02-15',
-    notes: ''
-  },
-  {
-    id: '11',
-    date: '2025-02-20',
-    checkNumber: '960107',
-    reason: 'Closed Account',
-    amount: 20000,
-    name: 'Ahmed Zakaria Elsayed Mohamed Ali',
-    building: 'AMHB',
-    unitNumber: '205_A',
-    paymentWay: 'Will be legal',
-    status: 'pending',
-    staff: '',
-    email: 'ahmed@example.com',
-    phone: '+971 50 901 2345',
-    followUpDate: '2025-03-06',
-    notes: ''
-  },
-  {
-    id: '12',
-    date: '2025-03-05',
-    checkNumber: '336738',
-    reason: 'Irregular Signature',
-    amount: 22500,
-    name: 'Rakesh Kumar',
-    building: 'AMTB',
-    unitNumber: '201_A',
-    paymentWay: 'Will be legal',
-    status: 'pending',
-    staff: 'AFZIRA',
-    email: 'rakesh@example.com',
-    phone: '+971 50 012 3456',
-    followUpDate: '2025-03-19',
-    notes: ''
-  },
-  {
-    id: '13',
-    date: '2025-03-07',
-    checkNumber: '19',
-    reason: 'Insufficient Balance',
-    amount: 19925,
-    name: 'Parminder Singh Sembhi',
-    building: 'REEF A',
-    unitNumber: '',
-    paymentWay: '',
-    status: 'bounced',
-    staff: 'shaimaa',
-    email: 'parminder@example.com',
-    phone: '+971 50 123 4567',
-    followUpDate: '2025-03-21',
-    notes: ''
-  },
-  {
-    id: '14',
-    date: '2025-03-08',
-    checkNumber: '39',
-    reason: 'Insufficient Balance',
-    amount: 30000,
-    name: 'Deepak - Mrs. Priyanka Lokhande Yuvraj Malhari Lokhande',
-    building: 'TA',
-    unitNumber: '404',
-    paymentWay: 'Will be legal',
-    status: 'pending',
-    staff: 'AFZIRA',
-    email: 'deepak@example.com',
-    phone: '+971 50 234 5678',
-    followUpDate: '2025-03-22',
-    notes: ''
-  },
-  {
-    id: '15',
-    date: '2025-03-25',
-    checkNumber: '33',
-    reason: 'Insufficient Balance',
-    amount: 5550,
-    name: 'Fisal Kifayat',
-    building: 'MAHA B',
-    unitNumber: '101',
-    paymentWay: '',
-    status: 'bounced',
-    staff: 'alyazyah',
-    email: 'fisal@example.com',
-    phone: '+971 50 345 6789',
-    followUpDate: '2025-04-08',
-    notes: ''
-  },
-  {
-    id: '16',
-    date: '2025-03-26',
-    checkNumber: '32',
-    reason: 'Insufficient Funds',
-    amount: 31000,
-    name: 'Ossama Mohamed Ahmed Abdalla',
-    building: 'REEF B',
-    unitNumber: '1601',
-    paymentWay: '',
-    status: 'bounced',
-    staff: 'shaimaa',
-    email: 'ossama@example.com',
-    phone: '+971 50 456 7890',
-    followUpDate: '2025-04-09',
-    notes: ''
-  },
-  {
-    id: '17',
-    date: '2025-03-26',
-    checkNumber: '692859',
-    reason: 'Signature Irregular',
-    amount: 6750,
-    name: 'Ahmed Abdi',
-    building: 'P127',
-    unitNumber: '022_A',
-    paymentWay: 'Requested but returned again',
-    status: 'bounced',
-    staff: '',
-    email: 'ahmed.abdi@example.com',
-    phone: '+971 50 567 8901',
-    followUpDate: '2025-04-09',
-    notes: ''
-  },
-  {
-    id: '18',
-    date: '2025-04-10',
-    checkNumber: '100030',
-    reason: 'Insufficient Funds',
-    amount: 4000,
-    name: 'Nawaf Al Chamlal',
-    building: 'TB',
-    unitNumber: '601',
-    paymentWay: 'Old system cooling bills',
-    status: 'bounced',
-    staff: 'AFZIRA',
-    email: 'nawaf@example.com',
-    phone: '+971 50 678 9012',
-    followUpDate: '2025-04-24',
-    notes: ''
-  },
-  {
-    id: '19',
-    date: '2025-04-25',
-    checkNumber: '34',
-    reason: 'Insufficient Funds',
-    amount: 5550,
-    name: 'Faisal Kifayat',
-    building: 'MA',
-    unitNumber: '101',
-    paymentWay: '',
-    status: 'bounced',
-    staff: '',
-    email: 'faisal@example.com',
-    phone: '+971 50 789 0123',
-    followUpDate: '2025-05-09',
-    notes: ''
-  },
-  {
-    id: '20',
-    date: '2025-04-25',
-    checkNumber: '45',
-    reason: 'Closed Account',
-    amount: 13684,
-    name: 'Ayman Mohamed',
-    building: 'MAHA A2',
-    unitNumber: '1102',
-    paymentWay: 'Paid',
-    status: 'resolved',
-    staff: '',
-    email: 'ayman@example.com',
-    phone: '+971 50 890 1234',
-    followUpDate: '2025-05-09',
-    notes: ''
-  },
-  {
-    id: '21',
-    date: '2025-04-28',
-    checkNumber: '16',
-    reason: 'Insufficient Funds',
-    amount: 11025,
-    name: 'Mohamed Khaled Abdelnabi',
-    building: 'AMHC',
-    unitNumber: '610_A',
-    paymentWay: '',
-    status: 'bounced',
-    staff: 'alyazyah',
-    email: 'mohamed.k@example.com',
-    phone: '+971 50 901 2345',
-    followUpDate: '2025-05-12',
-    notes: ''
-  },
-  {
-    id: '22',
-    date: '2025-05-01',
-    checkNumber: '880079',
-    reason: 'Insufficient Funds',
-    amount: 11025,
-    name: 'Mamta Surehlal Budhrani',
-    building: 'AMHC',
-    unitNumber: '1301_A',
-    paymentWay: '',
-    status: 'bounced',
-    staff: 'alyazyah',
-    email: 'mamta@example.com',
-    phone: '+971 50 012 3456',
-    followUpDate: '2025-05-15',
-    notes: ''
-  },
-  {
-    id: '23',
-    date: '2025-05-01',
-    checkNumber: '500001',
-    reason: 'Insufficient Funds',
-    amount: 14250,
-    name: 'Pham Thi Duyen Hai',
-    building: 'TA',
-    unitNumber: '905',
-    paymentWay: 'Paid partial 7000',
-    status: 'pending',
-    staff: 'AFZIRA',
-    email: 'pham@example.com',
-    phone: '+971 50 123 4567',
-    followUpDate: '2025-05-15',
-    notes: ''
-  },
-  {
-    id: '24',
-    date: '2025-05-10',
-    checkNumber: '100031',
-    reason: 'Insufficient Funds',
-    amount: 3700,
-    name: 'Nawaf Al Chamlal',
-    building: 'TB',
-    unitNumber: '601',
-    paymentWay: 'Old system cooling bills',
-    status: 'bounced',
-    staff: 'AFZIRA',
-    email: 'nawaf@example.com',
-    phone: '+971 50 678 9012',
-    followUpDate: '2025-05-24',
-    notes: ''
-  },
-  {
-    id: '25',
-    date: '2025-05-24',
-    checkNumber: '500107',
-    reason: 'Insufficient Funds',
-    amount: 51250,
-    name: 'Mohammed Souliman Mohammed Ali Altaban',
-    building: 'OMNY',
-    unitNumber: '2901_A',
-    paymentWay: "Didn't replace yet",
-    status: 'pending',
-    staff: 'afrah',
-    email: 'mohammed.s@example.com',
-    phone: '+971 50 234 5678',
-    followUpDate: '2025-06-07',
-    notes: ''
-  },
-  {
-    id: '26',
-    date: '2025-05-25',
-    checkNumber: '500039',
-    reason: 'Insufficient Funds',
-    amount: 41000,
-    name: 'Mayar Hils Real Estate LLC OPC',
-    building: 'OMNIA',
-    unitNumber: '2703',
-    paymentWay: '',
-    status: 'bounced',
-    staff: '',
-    email: 'mayar@example.com',
-    phone: '+971 50 345 6789',
-    followUpDate: '2025-06-08',
-    notes: ''
-  },
-  {
-    id: '27',
-    date: '2025-05-25',
-    checkNumber: '35',
-    reason: 'Insufficient Funds',
-    amount: 5550,
-    name: 'Faisal Kifayat',
-    building: 'MA',
-    unitNumber: '101',
-    paymentWay: '',
-    status: 'bounced',
-    staff: '',
-    email: 'faisal@example.com',
-    phone: '+971 50 789 0123',
-    followUpDate: '2025-06-08',
-    notes: ''
-  },
-  {
-    id: '28',
-    date: '2025-06-01',
-    checkNumber: '336738',
-    reason: 'Irregular Signature',
-    amount: 22500,
-    name: 'Rakesh Kumar',
-    building: 'AMTB',
-    unitNumber: '201_A',
-    paymentWay: 'Will be legal',
-    status: 'pending',
-    staff: 'AFZIRA',
-    email: 'rakesh@example.com',
-    phone: '+971 50 012 3456',
-    followUpDate: '2025-06-15',
-    notes: ''
-  },
-  {
-    id: '29',
-    date: '2025-06-01',
-    checkNumber: '336739',
-    reason: 'Irregular Signature',
-    amount: 22500,
-    name: 'Rakesh Kumar',
-    building: 'AMTB',
-    unitNumber: '201_A',
-    paymentWay: 'Will be legal',
-    status: 'pending',
-    staff: 'AFZIRA',
-    email: 'rakesh@example.com',
-    phone: '+971 50 012 3456',
-    followUpDate: '2025-06-15',
-    notes: ''
-  }
-];
+const initialData: CheckRecord[] = [];
 
 export default function BouncedCheckManager() {
   const [checks, setChecks] = useState<CheckRecord[]>([]);
@@ -532,12 +43,19 @@ export default function BouncedCheckManager() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [selectedCheck, setSelectedCheck] = useState<CheckRecord | null>(null);
   const [formData, setFormData] = useState<Partial<CheckRecord>>({
     date: format(new Date(), 'yyyy-MM-dd'),
     status: 'bounced',
-    followUpDate: format(addWeeks(new Date(), 2), 'yyyy-MM-dd')
+    followUpDate: format(addWeeks(new Date(), 2), 'yyyy-MM-dd'),
+    returnDate: format(new Date(), 'yyyy-MM-dd'),
+    cpvNumber: ''
   });
+  const [formErrors, setFormErrors] = useState<ValidationError[]>([]);
+  const [touchedFields, setTouchedFields] = useState<Set<string>>(new Set());
+  const [editErrors, setEditErrors] = useState<ValidationError[]>([]);
+  const [editTouchedFields, setEditTouchedFields] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const savedChecks = localStorage.getItem('bouncedChecks');
@@ -576,10 +94,19 @@ export default function BouncedCheckManager() {
   };
 
   const handleAddCheck = () => {
-    if (!formData.name || !formData.amount || !formData.checkNumber) {
-      alert('Please fill in all required fields');
+    setFormErrors([]);
+
+    // Validate form data
+    const validation = validateCheckRecord(formData);
+    if (!validation.isValid) {
+      setFormErrors(validation.errors);
       return;
     }
+
+    // compute follow-up date from returnDate (+14 days) if provided
+    const computedFollowUp = formData.returnDate
+      ? format(addWeeks(new Date(formData.returnDate), 2), 'yyyy-MM-dd')
+      : formData.followUpDate || format(addWeeks(new Date(), 2), 'yyyy-MM-dd');
 
     const newCheck: CheckRecord = {
       id: Date.now().toString(),
@@ -595,17 +122,30 @@ export default function BouncedCheckManager() {
       staff: formData.staff || '',
       email: formData.email || '',
       phone: formData.phone || '',
-      followUpDate: formData.followUpDate || format(addWeeks(new Date(), 2), 'yyyy-MM-dd'),
+      followUpDate: computedFollowUp,
+      returnDate: formData.returnDate || undefined,
+      cpvNumber: formData.cpvNumber || '',
       notes: formData.notes || ''
     };
 
     setChecks([...checks, newCheck]);
     setShowAddModal(false);
     resetForm();
+    setFormErrors([]);
+    setTouchedFields(new Set());
   };
 
   const handleUpdateCheck = () => {
     if (!selectedCheck) return;
+
+    setEditErrors([]);
+
+    // Validate form data
+    const validation = validateCheckRecord(selectedCheck);
+    if (!validation.isValid) {
+      setEditErrors(validation.errors);
+      return;
+    }
 
     const updatedChecks = checks.map(check =>
       check.id === selectedCheck.id ? selectedCheck : check
@@ -624,10 +164,11 @@ export default function BouncedCheckManager() {
   };
 
   const updateFollowUpDate = (checkId: string) => {
-    const updatedChecks = checks.map(check => {
+    const updatedChecks: CheckRecord[] = checks.map(check => {
       if (check.id === checkId) {
         return {
           ...check,
+          status: 'retrieved' as CheckRecord['status'],
           followUpDate: format(addWeeks(new Date(check.followUpDate), 2), 'yyyy-MM-dd')
         };
       }
@@ -640,7 +181,9 @@ export default function BouncedCheckManager() {
     setFormData({
       date: format(new Date(), 'yyyy-MM-dd'),
       status: 'bounced',
-      followUpDate: format(addWeeks(new Date(), 2), 'yyyy-MM-dd')
+      followUpDate: format(addWeeks(new Date(), 2), 'yyyy-MM-dd'),
+      returnDate: format(new Date(), 'yyyy-MM-dd'),
+      cpvNumber: ''
     });
   };
 
@@ -650,6 +193,8 @@ export default function BouncedCheckManager() {
       case 'retrieved': return 'bg-primary text-primary-foreground';
       case 'pending': return 'bg-secondary text-secondary-foreground';
       case 'resolved': return 'bg-accent text-accent-foreground';
+      case 'deal_close': return 'bg-primary text-primary-foreground';
+      case 'partial_paid': return 'bg-secondary text-secondary-foreground';
       default: return 'bg-muted text-muted-foreground';
     }
   };
@@ -660,6 +205,8 @@ export default function BouncedCheckManager() {
       case 'retrieved': return <CheckCircle className="w-4 h-4" />;
       case 'pending': return <Clock className="w-4 h-4" />;
       case 'resolved': return <CheckCircle className="w-4 h-4" />;
+      case 'deal_close': return <CheckCircle className="w-4 h-4" />;
+      case 'partial_paid': return <CheckCircle className="w-4 h-4" />;
       default: return <Clock className="w-4 h-4" />;
     }
   };
@@ -667,6 +214,16 @@ export default function BouncedCheckManager() {
   const isFollowUpDue = (followUpDate: string) => {
     return isPast(new Date(followUpDate));
   };
+
+  const getNotificationChecks = () => {
+    return checks.filter(check => 
+      check.status !== 'resolved' && 
+      (isPast(new Date(check.followUpDate)) || 
+       differenceInDays(new Date(check.followUpDate), new Date()) <= 3)
+    );
+  };
+
+  const notificationChecks = getNotificationChecks();
 
   const stats = {
     total: checks.length,
@@ -687,6 +244,20 @@ export default function BouncedCheckManager() {
     setShowContactModal(false);
   };
 
+  const { user, logout } = useAuth();
+
+  const getFieldError = (fieldName: string, errors: ValidationError[]): string | undefined => {
+    return errors.find(e => e.field === fieldName)?.message;
+  };
+
+  const handleFieldBlur = (fieldName: string) => {
+    setTouchedFields(prev => new Set([...prev, fieldName]));
+  };
+
+  const handleEditFieldBlur = (fieldName: string) => {
+    setEditTouchedFields(prev => new Set([...prev, fieldName]));
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 p-4 md:p-8">
       <div className="max-w-7xl mx-auto space-y-8">
@@ -697,13 +268,46 @@ export default function BouncedCheckManager() {
             </h1>
             <p className="text-muted-foreground mt-2 text-lg">Track and manage bounced checks with automated follow-ups</p>
           </div>
-          <Button 
-            onClick={() => setShowAddModal(true)} 
-            className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-md hover:shadow-lg transition-all"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Add New Check
-          </Button>
+          <div className="flex flex-col gap-3 items-end">
+            <div className="flex gap-3 items-center">
+              <div className="relative">
+                <Button 
+                  onClick={() => setShowNotificationModal(true)} 
+                  className="relative bg-accent text-accent-foreground hover:bg-accent/90 shadow-md hover:shadow-lg transition-all"
+                >
+                  <AlertCircle className="w-5 h-5" />
+                  {notificationChecks.length > 0 && (
+                    <span className="absolute -top-2 -right-2 bg-destructive text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
+                      {notificationChecks.length}
+                    </span>
+                  )}
+                </Button>
+              </div>
+              <Button 
+                onClick={() => setShowAddModal(true)} 
+                className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-md hover:shadow-lg transition-all"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add New Check
+              </Button>
+              <Button 
+                onClick={logout}
+                variant="outline"
+                className="hover:bg-destructive/10 border-destructive/30"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Logout
+              </Button>
+            </div>
+            {user && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-primary/10 rounded-lg border border-primary/20">
+                <User className="w-4 h-4 text-primary" />
+                <span className="text-sm font-semibold text-primary">
+                  {user.username}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -920,6 +524,14 @@ export default function BouncedCheckManager() {
               <CardDescription>Enter the details of the bounced check</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              {formErrors.length > 0 && (
+                <ValidationAlert
+                  type="error"
+                  title="Validation Error"
+                  errors={formErrors}
+                  onDismiss={() => setFormErrors([])}
+                />
+              )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Tenant Name *</Label>
@@ -927,8 +539,11 @@ export default function BouncedCheckManager() {
                     id="name"
                     value={formData.name || ''}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    onBlur={() => handleFieldBlur('name')}
                     placeholder="Enter tenant name"
+                    className={getFieldError('name', formErrors) && touchedFields.has('name') ? 'border-destructive' : ''}
                   />
+                  <FieldError error={getFieldError('name', formErrors)} touched={touchedFields.has('name')} />
                 </div>
 
                 <div className="space-y-2">
@@ -937,8 +552,11 @@ export default function BouncedCheckManager() {
                     id="building"
                     value={formData.building || ''}
                     onChange={(e) => setFormData({ ...formData, building: e.target.value })}
+                    onBlur={() => handleFieldBlur('building')}
                     placeholder="Enter building name"
+                    className={getFieldError('building', formErrors) && touchedFields.has('building') ? 'border-destructive' : ''}
                   />
+                  <FieldError error={getFieldError('building', formErrors)} touched={touchedFields.has('building')} />
                 </div>
 
                 <div className="space-y-2">
@@ -947,8 +565,11 @@ export default function BouncedCheckManager() {
                     id="unitNumber"
                     value={formData.unitNumber || ''}
                     onChange={(e) => setFormData({ ...formData, unitNumber: e.target.value })}
+                    onBlur={() => handleFieldBlur('unitNumber')}
                     placeholder="Enter unit number"
+                    className={getFieldError('unitNumber', formErrors) && touchedFields.has('unitNumber') ? 'border-destructive' : ''}
                   />
+                  <FieldError error={getFieldError('unitNumber', formErrors)} touched={touchedFields.has('unitNumber')} />
                 </div>
 
                 <div className="space-y-2">
@@ -957,8 +578,11 @@ export default function BouncedCheckManager() {
                     id="checkNumber"
                     value={formData.checkNumber || ''}
                     onChange={(e) => setFormData({ ...formData, checkNumber: e.target.value })}
+                    onBlur={() => handleFieldBlur('checkNumber')}
                     placeholder="Enter check number"
+                    className={getFieldError('checkNumber', formErrors) && touchedFields.has('checkNumber') ? 'border-destructive' : ''}
                   />
+                  <FieldError error={getFieldError('checkNumber', formErrors)} touched={touchedFields.has('checkNumber')} />
                 </div>
 
                 <div className="space-y-2">
@@ -968,8 +592,11 @@ export default function BouncedCheckManager() {
                     type="number"
                     value={formData.amount || ''}
                     onChange={(e) => setFormData({ ...formData, amount: Number(e.target.value) })}
+                    onBlur={() => handleFieldBlur('amount')}
                     placeholder="Enter amount"
+                    className={getFieldError('amount', formErrors) && touchedFields.has('amount') ? 'border-destructive' : ''}
                   />
+                  <FieldError error={getFieldError('amount', formErrors)} touched={touchedFields.has('amount')} />
                 </div>
 
                 <div className="space-y-2">
@@ -979,7 +606,10 @@ export default function BouncedCheckManager() {
                     type="date"
                     value={formData.date || ''}
                     onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                    onBlur={() => handleFieldBlur('date')}
+                    className={getFieldError('date', formErrors) && touchedFields.has('date') ? 'border-destructive' : ''}
                   />
+                  <FieldError error={getFieldError('date', formErrors)} touched={touchedFields.has('date')} />
                 </div>
 
                 <div className="space-y-2">
@@ -999,8 +629,11 @@ export default function BouncedCheckManager() {
                     type="email"
                     value={formData.email || ''}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    onBlur={() => handleFieldBlur('email')}
                     placeholder="tenant@example.com"
+                    className={getFieldError('email', formErrors) && touchedFields.has('email') ? 'border-destructive' : ''}
                   />
+                  <FieldError error={getFieldError('email', formErrors)} touched={touchedFields.has('email')} />
                 </div>
 
                 <div className="space-y-2">
@@ -1009,8 +642,11 @@ export default function BouncedCheckManager() {
                     id="phone"
                     value={formData.phone || ''}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    onBlur={() => handleFieldBlur('phone')}
                     placeholder="+971 50 123 4567"
+                    className={getFieldError('phone', formErrors) && touchedFields.has('phone') ? 'border-destructive' : ''}
                   />
+                  <FieldError error={getFieldError('phone', formErrors)} touched={touchedFields.has('phone')} />
                 </div>
 
                 <div className="space-y-2">
@@ -1056,10 +692,36 @@ export default function BouncedCheckManager() {
                       <SelectItem value="bounced">Bounced</SelectItem>
                       <SelectItem value="pending">Pending</SelectItem>
                       <SelectItem value="retrieved">Retrieved</SelectItem>
+                      <SelectItem value="deal_close">Deal Close</SelectItem>
+                      <SelectItem value="partial_paid">Partial Paid</SelectItem>
                       <SelectItem value="resolved">Resolved</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="returnDate">Return Date</Label>
+                  <Input
+                    id="returnDate"
+                    type="date"
+                    value={formData.returnDate || ''}
+                    onChange={(e) => setFormData({ ...formData, returnDate: e.target.value })}
+                  />
+                </div>
+
+                {(formData.status === 'deal_close' || formData.status === 'partial_paid') && (
+                  <div className="space-y-2">
+                    <Label htmlFor="cpvNumber">CPV Number</Label>
+                    <Input
+                      id="cpvNumber"
+                      value={formData.cpvNumber || ''}
+                      onChange={(e) => setFormData({ ...formData, cpvNumber: e.target.value })}
+                      placeholder="Enter CPV number"
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -1108,6 +770,14 @@ export default function BouncedCheckManager() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
+              {editErrors.length > 0 && (
+                <ValidationAlert
+                  type="error"
+                  title="Validation Error"
+                  errors={editErrors}
+                  onDismiss={() => setEditErrors([])}
+                />
+              )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="edit-name">Tenant Name</Label>
@@ -1115,7 +785,10 @@ export default function BouncedCheckManager() {
                     id="edit-name"
                     value={selectedCheck.name}
                     onChange={(e) => setSelectedCheck({ ...selectedCheck, name: e.target.value })}
+                    onBlur={() => handleEditFieldBlur('name')}
+                    className={getFieldError('name', editErrors) && editTouchedFields.has('name') ? 'border-destructive' : ''}
                   />
+                  <FieldError error={getFieldError('name', editErrors)} touched={editTouchedFields.has('name')} />
                 </div>
 
                 <div className="space-y-2">
@@ -1124,7 +797,10 @@ export default function BouncedCheckManager() {
                     id="edit-building"
                     value={selectedCheck.building}
                     onChange={(e) => setSelectedCheck({ ...selectedCheck, building: e.target.value })}
+                    onBlur={() => handleEditFieldBlur('building')}
+                    className={getFieldError('building', editErrors) && editTouchedFields.has('building') ? 'border-destructive' : ''}
                   />
+                  <FieldError error={getFieldError('building', editErrors)} touched={editTouchedFields.has('building')} />
                 </div>
 
                 <div className="space-y-2">
@@ -1214,6 +890,8 @@ export default function BouncedCheckManager() {
                       <SelectItem value="bounced">Bounced</SelectItem>
                       <SelectItem value="pending">Pending</SelectItem>
                       <SelectItem value="retrieved">Retrieved</SelectItem>
+                      <SelectItem value="deal_close">Deal Close</SelectItem>
+                      <SelectItem value="partial_paid">Partial Paid</SelectItem>
                       <SelectItem value="resolved">Resolved</SelectItem>
                     </SelectContent>
                   </Select>
@@ -1238,6 +916,27 @@ export default function BouncedCheckManager() {
                     onChange={(e) => setSelectedCheck({ ...selectedCheck, followUpDate: e.target.value })}
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-returnDate">Return Date</Label>
+                  <Input
+                    id="edit-returnDate"
+                    type="date"
+                    value={selectedCheck.returnDate || ''}
+                    onChange={(e) => setSelectedCheck({ ...selectedCheck, returnDate: e.target.value })}
+                  />
+                </div>
+
+                {(selectedCheck.status === 'deal_close' || selectedCheck.status === 'partial_paid') && (
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-cpvNumber">CPV Number</Label>
+                    <Input
+                      id="edit-cpvNumber"
+                      value={selectedCheck.cpvNumber || ''}
+                      onChange={(e) => setSelectedCheck({ ...selectedCheck, cpvNumber: e.target.value })}
+                      placeholder="Enter CPV number"
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -1340,6 +1039,106 @@ export default function BouncedCheckManager() {
                   Send Message
                 </Button>
               </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {showNotificationModal && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <Card className="w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+            <CardHeader className="border-b border-border">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <AlertCircle className="w-6 h-6 text-accent" />
+                    Follow-up Notifications
+                  </CardTitle>
+                  <CardDescription>Checks with approaching or overdue follow-up dates</CardDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowNotificationModal(false)}
+                >
+                  ✕
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-4">
+              {notificationChecks.length === 0 ? (
+                <div className="text-center py-8">
+                  <CheckCircle className="w-12 h-12 text-primary mx-auto mb-3" />
+                  <p className="text-muted-foreground">No notifications. All follow-ups are on track!</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {notificationChecks.map((check) => {
+                    const daysUntil = differenceInDays(new Date(check.followUpDate), new Date());
+                    const isOverdue = daysUntil < 0;
+                    
+                    return (
+                      <div
+                        key={check.id}
+                        onClick={() => {
+                          setSelectedCheck(check);
+                          setShowNotificationModal(false);
+                          setShowDetailModal(true);
+                        }}
+                        className={`p-4 rounded-lg border-2 cursor-pointer transition-all hover:shadow-md ${
+                          isOverdue
+                            ? 'border-destructive bg-destructive/5 hover:bg-destructive/10'
+                            : 'border-accent bg-accent/5 hover:bg-accent/10'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <h4 className="font-bold text-foreground">{check.name}</h4>
+                              <span className={`text-xs font-bold px-2 py-1 rounded ${
+                                isOverdue
+                                  ? 'bg-destructive text-destructive-foreground'
+                                  : 'bg-accent text-accent-foreground'
+                              }`}>
+                                {isOverdue ? `Overdue by ${Math.abs(daysUntil)} days` : `Due in ${daysUntil} days`}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm text-muted-foreground">
+                              <div className="flex items-center gap-1">
+                                <Hash className="w-3 h-3" />
+                                Check #{check.checkNumber}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <DollarSign className="w-3 h-3" />
+                                AED {check.amount.toLocaleString()}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Building2 className="w-3 h-3" />
+                                {check.building}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Calendar className="w-3 h-3" />
+                                {format(new Date(check.followUpDate), 'MMM dd, yyyy')}
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                {check.status}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            {isOverdue ? (
+                              <AlertCircle className="w-6 h-6 text-destructive" />
+                            ) : (
+                              <Clock className="w-6 h-6 text-accent" />
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
