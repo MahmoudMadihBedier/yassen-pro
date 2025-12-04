@@ -58,13 +58,32 @@ export default function BouncedCheckManager() {
   const [editTouchedFields, setEditTouchedFields] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    const savedChecks = localStorage.getItem('bouncedChecks');
-    if (savedChecks) {
-      setChecks(JSON.parse(savedChecks));
-    } else {
-      setChecks(initialData);
-      localStorage.setItem('bouncedChecks', JSON.stringify(initialData));
-    }
+    // Try to load from remote API first. Fall back to localStorage if API is unavailable.
+    const fetchChecks = async () => {
+      try {
+        const res = await fetch('/api/checks');
+        if (!res.ok) throw new Error('API fetch failed');
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          setChecks(data);
+          localStorage.setItem('bouncedChecks', JSON.stringify(data));
+          return;
+        }
+      } catch (err) {
+        // ignore, fallback to local storage
+        console.warn('Failed to fetch checks from API, falling back to localStorage', err);
+      }
+
+      const savedChecks = localStorage.getItem('bouncedChecks');
+      if (savedChecks) {
+        setChecks(JSON.parse(savedChecks));
+      } else {
+        setChecks(initialData);
+        localStorage.setItem('bouncedChecks', JSON.stringify(initialData));
+      }
+    };
+
+    fetchChecks();
   }, []);
 
   useEffect(() => {
@@ -93,7 +112,7 @@ export default function BouncedCheckManager() {
     setFilteredChecks(filtered);
   };
 
-  const handleAddCheck = () => {
+  const handleAddCheck = async () => {
     setFormErrors([]);
 
     // Validate form data
@@ -128,14 +147,33 @@ export default function BouncedCheckManager() {
       notes: formData.notes || ''
     };
 
-    setChecks([...checks, newCheck]);
+    // Try to persist to API, fallback to local update if API fails
+    try {
+      const res = await fetch('/api/checks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newCheck)
+      });
+
+      if (!res.ok) throw new Error('API create failed');
+
+      const created = await res.json();
+      // Update UI
+      setChecks(prev => [...prev, created]);
+      localStorage.setItem('bouncedChecks', JSON.stringify([...checks, created]));
+    } catch (err) {
+      console.warn('Failed to save to API, saving locally', err);
+      setChecks(prev => [...prev, newCheck]);
+      localStorage.setItem('bouncedChecks', JSON.stringify([...checks, newCheck]));
+    }
+
     setShowAddModal(false);
     resetForm();
     setFormErrors([]);
     setTouchedFields(new Set());
   };
 
-  const handleUpdateCheck = () => {
+  const handleUpdateCheck = async () => {
     if (!selectedCheck) return;
 
     setEditErrors([]);
@@ -147,34 +185,71 @@ export default function BouncedCheckManager() {
       return;
     }
 
-    const updatedChecks = checks.map(check =>
-      check.id === selectedCheck.id ? selectedCheck : check
-    );
-    setChecks(updatedChecks);
+    try {
+      const res = await fetch(`/api/checks/${selectedCheck.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(selectedCheck)
+      });
+      if (!res.ok) throw new Error('API update failed');
+      const updated = await res.json();
+      setChecks(prev => prev.map(c => c.id === updated.id ? updated : c));
+      localStorage.setItem('bouncedChecks', JSON.stringify(checks.map(c => c.id === updated.id ? updated : c)));
+    } catch (err) {
+      console.warn('Failed to update on API, applying local update', err);
+      const updatedChecks = checks.map(check =>
+        check.id === selectedCheck.id ? selectedCheck : check
+      );
+      setChecks(updatedChecks);
+      localStorage.setItem('bouncedChecks', JSON.stringify(updatedChecks));
+    }
+
     setShowDetailModal(false);
     setSelectedCheck(null);
   };
 
-  const handleDeleteCheck = (id: string) => {
-    if (confirm('Are you sure you want to delete this check record?')) {
-      setChecks(checks.filter(check => check.id !== id));
-      setShowDetailModal(false);
-      setSelectedCheck(null);
+  const handleDeleteCheck = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this check record?')) return;
+
+    try {
+      const res = await fetch(`/api/checks/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('API delete failed');
+      setChecks(prev => prev.filter(check => check.id !== id));
+      localStorage.setItem('bouncedChecks', JSON.stringify(checks.filter(check => check.id !== id)));
+    } catch (err) {
+      console.warn('Failed to delete on API, deleting locally', err);
+      setChecks(prev => prev.filter(check => check.id !== id));
+      localStorage.setItem('bouncedChecks', JSON.stringify(checks.filter(check => check.id !== id)));
     }
+
+    setShowDetailModal(false);
+    setSelectedCheck(null);
   };
 
-  const updateFollowUpDate = (checkId: string) => {
-    const updatedChecks: CheckRecord[] = checks.map(check => {
-      if (check.id === checkId) {
-        return {
-          ...check,
-          status: 'retrieved' as CheckRecord['status'],
-          followUpDate: format(addWeeks(new Date(check.followUpDate), 2), 'yyyy-MM-dd')
-        };
-      }
-      return check;
-    });
-    setChecks(updatedChecks);
+  const updateFollowUpDate = async (checkId: string) => {
+    const target = checks.find(c => c.id === checkId);
+    if (!target) return;
+    const updated = {
+      ...target,
+      status: 'retrieved' as CheckRecord['status'],
+      followUpDate: format(addWeeks(new Date(target.followUpDate), 2), 'yyyy-MM-dd')
+    };
+
+    try {
+      const res = await fetch(`/api/checks/${checkId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated)
+      });
+      if (!res.ok) throw new Error('API update failed');
+      const updatedFromServer = await res.json();
+      setChecks(prev => prev.map(c => c.id === checkId ? updatedFromServer : c));
+      localStorage.setItem('bouncedChecks', JSON.stringify(checks.map(c => c.id === checkId ? updatedFromServer : c)));
+    } catch (err) {
+      console.warn('Failed to update follow-up on API, updating locally', err);
+      setChecks(prev => prev.map(c => c.id === checkId ? updated : c));
+      localStorage.setItem('bouncedChecks', JSON.stringify(checks.map(c => c.id === checkId ? updated : c)));
+    }
   };
 
   const resetForm = () => {
