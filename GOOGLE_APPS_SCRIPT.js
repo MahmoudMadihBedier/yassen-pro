@@ -50,6 +50,23 @@ function getSheet() {
   }
 }
 
+// Helper to format date-like values as yyyy-MM-dd strings
+function formatDateValue(value) {
+  try {
+    if (!value && value !== 0) return '';
+    if (value instanceof Date) {
+      return Utilities.formatDate(value, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+    }
+    const d = new Date(value);
+    if (!isNaN(d.getTime())) {
+      return Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+    }
+    return String(value || '');
+  } catch (err) {
+    return String(value || '');
+  }
+}
+
 // Initialize sheet with headers
 function initializeSheet(sheet) {
   try {
@@ -115,7 +132,12 @@ function handleGetChecks() {
       if (row[0]) { // if id exists
         const check = {};
         headers.forEach((header, idx) => {
-          check[header] = row[idx];
+          // Format date fields to yyyy-MM-dd for consistent client handling
+          if (['date','followUpDate','returnDate'].indexOf(header) !== -1) {
+            check[header] = formatDateValue(row[idx]);
+          } else {
+            check[header] = row[idx];
+          }
         });
         checks.push(check);
       }
@@ -144,7 +166,11 @@ function handleGetCheck(id) {
       if (String(data[i][0]) === String(id)) {
         const check = {};
         headers.forEach((header, idx) => {
-          check[header] = data[i][idx];
+          if (['date','followUpDate','returnDate'].indexOf(header) !== -1) {
+            check[header] = formatDateValue(data[i][idx]);
+          } else {
+            check[header] = data[i][idx];
+          }
         });
         return check;
       }

@@ -34,6 +34,49 @@ interface CheckRecord {
 }
 
 export default function BouncedCheckManager() {
+  // Helper: normalize various date formats (Date object, ISO string, yyyy-MM-dd)
+  const normalizeDateString = (value: any) => {
+    if (!value && value !== 0) return '';
+    try {
+      if (value instanceof Date) return format(value, 'yyyy-MM-dd');
+      if (typeof value === 'string') {
+        // If already in yyyy-MM-dd, return as-is
+        const maybe = value.trim();
+        if (/^\d{4}-\d{2}-\d{2}$/.test(maybe)) return maybe;
+        // Try parsing ISO or other string formats
+        const d = new Date(maybe);
+        if (!isNaN(d.getTime())) return format(d, 'yyyy-MM-dd');
+        // Fallback: first 10 chars (common ISO prefix)
+        return maybe.slice(0, 10);
+      }
+      // Fallback to string conversion
+      const d = new Date(String(value));
+      if (!isNaN(d.getTime())) return format(d, 'yyyy-MM-dd');
+      return String(value);
+    } catch (err) {
+      return String(value || '');
+    }
+  };
+
+  const normalizeCheck = (c: any): CheckRecord => ({
+    id: String(c.id ?? ''),
+    date: normalizeDateString(c.date) || format(new Date(), 'yyyy-MM-dd'),
+    checkNumber: String(c.checkNumber ?? ''),
+    reason: String(c.reason ?? ''),
+    amount: Number(c.amount ?? 0) || 0,
+    name: String(c.name ?? ''),
+    building: String(c.building ?? ''),
+    unitNumber: String(c.unitNumber ?? ''),
+    paymentWay: String(c.paymentWay ?? ''),
+    status: (c.status as any) || 'bounced',
+    staff: String(c.staff ?? ''),
+    email: String(c.email ?? ''),
+    phone: String(c.phone ?? ''),
+    followUpDate: normalizeDateString(c.followUpDate) || format(addWeeks(new Date(), 2), 'yyyy-MM-dd'),
+    returnDate: c.returnDate ? normalizeDateString(c.returnDate) : '',
+    cpvNumber: String(c.cpvNumber ?? ''),
+    notes: String(c.notes ?? '')
+  });
   const [checks, setChecks] = useState<CheckRecord[]>([]);
   const [filteredChecks, setFilteredChecks] = useState<CheckRecord[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -56,25 +99,31 @@ export default function BouncedCheckManager() {
   const [editTouchedFields, setEditTouchedFields] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    // Always load from MongoDB—it's the single source of truth
+    // Always load from Apps Script/Google Sheets (via API proxy)
     const fetchChecks = async () => {
       try {
         const res = await fetch('/api/checks');
         if (!res.ok) throw new Error('API fetch failed');
         const data = await res.json();
         if (Array.isArray(data)) {
-          setChecks(data);
-          // Keep a local cache for offline reference, but trust the API as source of truth
-          localStorage.setItem('bouncedChecks', JSON.stringify(data));
+          const normalized = data.map(normalizeCheck);
+          setChecks(normalized);
+          // Keep a local cache for offline reference
+          localStorage.setItem('bouncedChecks', JSON.stringify(normalized));
           return;
         }
       } catch (err) {
         // If API fails, show error but try to use local cache as fallback
-        console.error('Failed to fetch checks from MongoDB API:', err);
+        console.error('Failed to fetch checks from API:', err);
         const savedChecks = localStorage.getItem('bouncedChecks');
         if (savedChecks) {
           console.warn('Using stale local cache. Please refresh when connection is restored.');
-          setChecks(JSON.parse(savedChecks));
+          try {
+            const parsed = JSON.parse(savedChecks);
+            setChecks(parsed.map(normalizeCheck));
+          } catch (e) {
+            setChecks([]);
+          }
         } else {
           setChecks([]);
         }
@@ -153,9 +202,12 @@ export default function BouncedCheckManager() {
       if (!res.ok) throw new Error('API create failed');
 
       const created = await res.json();
-      // Update UI and local cache
-      setChecks(prev => [...prev, created]);
-      localStorage.setItem('bouncedChecks', JSON.stringify([...checks, created]));
+      // Update UI and local cache with normalized data
+      setChecks(prev => {
+        const next = [...prev, normalizeCheck(created)];
+        localStorage.setItem('bouncedChecks', JSON.stringify(next));
+        return next;
+      });
     } catch (err) {
       console.error('Failed to save to MongoDB:', err);
       alert('Error saving check. Please try again.');
@@ -180,15 +232,27 @@ export default function BouncedCheckManager() {
     }
 
     try {
+      const payload = {
+        ...selectedCheck,
+        date: normalizeDateString(selectedCheck.date),
+        followUpDate: normalizeDateString(selectedCheck.followUpDate),
+        returnDate: selectedCheck.returnDate ? normalizeDateString(selectedCheck.returnDate) : '',
+        amount: Number(selectedCheck.amount) || 0
+      };
+
       const res = await fetch(`/api/checks/${selectedCheck.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(selectedCheck)
+        body: JSON.stringify(payload)
       });
       if (!res.ok) throw new Error('API update failed');
       const updated = await res.json();
-      setChecks(prev => prev.map(c => c.id === updated.id ? updated : c));
-      localStorage.setItem('bouncedChecks', JSON.stringify(checks.map(c => c.id === updated.id ? updated : c)));
+      const normalized = normalizeCheck(updated);
+      setChecks(prev => {
+        const next = prev.map(c => c.id === normalized.id ? normalized : c);
+        localStorage.setItem('bouncedChecks', JSON.stringify(next));
+        return next;
+      });
     } catch (err) {
       console.error('Failed to update in MongoDB:', err);
       alert('Error updating check. Please try again.');
@@ -204,8 +268,11 @@ export default function BouncedCheckManager() {
     try {
       const res = await fetch(`/api/checks/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('API delete failed');
-      setChecks(prev => prev.filter(check => check.id !== id));
-      localStorage.setItem('bouncedChecks', JSON.stringify(checks.filter(check => check.id !== id)));
+      setChecks(prev => {
+        const next = prev.filter(check => check.id !== id);
+        localStorage.setItem('bouncedChecks', JSON.stringify(next));
+        return next;
+      });
     } catch (err) {
       console.error('Failed to delete from MongoDB:', err);
       alert('Error deleting check. Please try again.');
@@ -221,19 +288,29 @@ export default function BouncedCheckManager() {
     const updated = {
       ...target,
       status: 'retrieved' as CheckRecord['status'],
-      followUpDate: format(addWeeks(new Date(target.followUpDate), 2), 'yyyy-MM-dd')
+      followUpDate: format(addWeeks(new Date(normalizeDateString(target.followUpDate)), 2), 'yyyy-MM-dd')
     };
 
     try {
       const res = await fetch(`/api/checks/${checkId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updated)
+        body: JSON.stringify({
+          ...updated,
+          date: normalizeDateString(updated.date),
+          followUpDate: normalizeDateString(updated.followUpDate),
+          returnDate: updated.returnDate ? normalizeDateString(updated.returnDate) : '',
+          amount: Number(updated.amount) || 0
+        })
       });
       if (!res.ok) throw new Error('API update failed');
       const updatedFromServer = await res.json();
-      setChecks(prev => prev.map(c => c.id === checkId ? updatedFromServer : c));
-      localStorage.setItem('bouncedChecks', JSON.stringify(checks.map(c => c.id === checkId ? updatedFromServer : c)));
+      const normalized = normalizeCheck(updatedFromServer);
+      setChecks(prev => {
+        const next = prev.map(c => c.id === checkId ? normalized : c);
+        localStorage.setItem('bouncedChecks', JSON.stringify(next));
+        return next;
+      });
     } catch (err) {
       console.error('Failed to update follow-up in MongoDB:', err);
       alert('Error updating follow-up date. Please try again.');
