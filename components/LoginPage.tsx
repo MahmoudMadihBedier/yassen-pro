@@ -8,7 +8,6 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ValidationAlert, FieldError } from '@/components/ValidationAlert';
 import { validateLoginForm, ValidationError } from '@/lib/validation';
-import { AlertCircle } from 'lucide-react';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -144,7 +143,7 @@ export default function LoginPage() {
               )}
             </Button>
 
-            <div className="pt-4 border-t border-border">
+            {/* <div className="pt-4 border-t border-border">
               <p className="text-sm text-muted-foreground text-center mb-3 font-medium">
                 Demo Credentials
               </p>
@@ -156,7 +155,7 @@ export default function LoginPage() {
                   <p className="font-mono text-foreground">collabrate / 9569633</p>
                 </div>
               </div>
-            </div>
+            </div> */}
           </form>
         </CardContent>
       </Card>

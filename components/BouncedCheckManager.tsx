@@ -33,501 +33,7 @@ interface CheckRecord {
   notes: string;
 }
 
-const initialData: CheckRecord[] = [
-  {
-    id: '1',
-    date: '2024-09-04',
-    checkNumber: '26',
-    reason: 'Insufficient Funds',
-    amount: 40000,
-    name: 'Raad Bandar Khudhair Alajwadi',
-    building: 'KARAMA',
-    unitNumber: '',
-    paymentWay: '',
-    status: 'bounced',
-    staff: '',
-    email: 'raad@example.com',
-    phone: '+971 50 123 4567',
-    followUpDate: '2024-09-18',
-    notes: ''
-  },
-  {
-    id: '2',
-    date: '2024-10-03',
-    checkNumber: '6',
-    reason: 'Insufficient Funds - PDC Inheritance',
-    amount: 7300,
-    name: 'Martin Royal',
-    building: 'PLOT125',
-    unitNumber: '',
-    paymentWay: '',
-    status: 'bounced',
-    staff: '',
-    email: 'martin@example.com',
-    phone: '+971 50 234 5678',
-    followUpDate: '2024-10-17',
-    notes: ''
-  },
-  {
-    id: '3',
-    date: '2024-10-22',
-    checkNumber: '7',
-    reason: 'Insufficient Funds - PDC Inheritance',
-    amount: 7300,
-    name: 'Martin Royal',
-    building: 'PLOT125',
-    unitNumber: '',
-    paymentWay: '',
-    status: 'pending',
-    staff: '',
-    email: 'martin@example.com',
-    phone: '+971 50 234 5678',
-    followUpDate: '2024-11-05',
-    notes: ''
-  },
-  {
-    id: '4',
-    date: '2024-10-30',
-    checkNumber: '19',
-    reason: 'Insufficient Funds',
-    amount: 10225,
-    name: 'Aref Abdullah',
-    building: 'MAHA C',
-    unitNumber: '808',
-    paymentWay: 'Pending payment and vacating',
-    status: 'pending',
-    staff: 'alyazyah',
-    email: 'aref@example.com',
-    phone: '+971 50 345 6789',
-    followUpDate: '2024-11-13',
-    notes: ''
-  },
-  {
-    id: '5',
-    date: '2024-10-30',
-    checkNumber: '500009',
-    reason: 'Insufficient Balance',
-    amount: 9713,
-    name: 'Hashem Zayed Ali',
-    building: 'AJMAN',
-    unitNumber: '6,7',
-    paymentWay: '',
-    status: 'bounced',
-    staff: 'AFZIRA',
-    email: 'hashem@example.com',
-    phone: '+971 50 456 7890',
-    followUpDate: '2024-11-13',
-    notes: ''
-  },
-  {
-    id: '6',
-    date: '2024-11-30',
-    checkNumber: '28',
-    reason: 'Insufficient Funds',
-    amount: 148000,
-    name: 'Raad Bandar Khudhair Alajwadi',
-    building: 'KARAMA',
-    unitNumber: '',
-    paymentWay: '',
-    status: 'bounced',
-    staff: '',
-    email: 'raad@example.com',
-    phone: '+971 50 123 4567',
-    followUpDate: '2024-12-14',
-    notes: ''
-  },
-  {
-    id: '7',
-    date: '2024-12-27',
-    checkNumber: '919338',
-    reason: 'Closed Account',
-    amount: 6150,
-    name: 'Ramashdeh Wesam',
-    building: 'OMNIA',
-    unitNumber: '',
-    paymentWay: 'Not Paid',
-    status: 'pending',
-    staff: 'afrah',
-    email: 'ramashdeh@example.com',
-    phone: '+971 50 567 8901',
-    followUpDate: '2025-01-10',
-    notes: ''
-  },
-  {
-    id: '8',
-    date: '2025-01-01',
-    checkNumber: '2',
-    reason: 'Insufficient Balance',
-    amount: 10750,
-    name: 'Eissa',
-    building: 'AMHC',
-    unitNumber: '1710_A',
-    paymentWay: 'Will pay at end of Oct',
-    status: 'pending',
-    staff: '',
-    email: 'eissa@example.com',
-    phone: '+971 50 678 9012',
-    followUpDate: '2025-01-15',
-    notes: ''
-  },
-  {
-    id: '9',
-    date: '2025-01-10',
-    checkNumber: '2',
-    reason: 'Not Authorized Signature',
-    amount: 63000,
-    name: 'Safety Access Road - Mutaz Jamil A Alatrash',
-    building: 'OMNY',
-    unitNumber: '1403',
-    paymentWay: 'Not Paid',
-    status: 'bounced',
-    staff: 'afrah',
-    email: 'mutaz@example.com',
-    phone: '+971 50 789 0123',
-    followUpDate: '2025-01-24',
-    notes: ''
-  },
-  {
-    id: '10',
-    date: '2025-02-01',
-    checkNumber: '700092',
-    reason: 'Closed Account',
-    amount: 15000,
-    name: 'Eighty Eight',
-    building: 'P185',
-    unitNumber: '303',
-    paymentWay: 'Hafez Abdulkarem Albatman',
-    status: 'bounced',
-    staff: '',
-    email: 'eightyeight@example.com',
-    phone: '+971 50 890 1234',
-    followUpDate: '2025-02-15',
-    notes: ''
-  },
-  {
-    id: '11',
-    date: '2025-02-20',
-    checkNumber: '960107',
-    reason: 'Closed Account',
-    amount: 20000,
-    name: 'Ahmed Zakaria Elsayed Mohamed Ali',
-    building: 'AMHB',
-    unitNumber: '205_A',
-    paymentWay: 'Will be legal',
-    status: 'pending',
-    staff: '',
-    email: 'ahmed@example.com',
-    phone: '+971 50 901 2345',
-    followUpDate: '2025-03-06',
-    notes: ''
-  },
-  {
-    id: '12',
-    date: '2025-03-05',
-    checkNumber: '336738',
-    reason: 'Irregular Signature',
-    amount: 22500,
-    name: 'Rakesh Kumar',
-    building: 'AMTB',
-    unitNumber: '201_A',
-    paymentWay: 'Will be legal',
-    status: 'pending',
-    staff: 'AFZIRA',
-    email: 'rakesh@example.com',
-    phone: '+971 50 012 3456',
-    followUpDate: '2025-03-19',
-    notes: ''
-  },
-  {
-    id: '13',
-    date: '2025-03-07',
-    checkNumber: '19',
-    reason: 'Insufficient Balance',
-    amount: 19925,
-    name: 'Parminder Singh Sembhi',
-    building: 'REEF A',
-    unitNumber: '',
-    paymentWay: '',
-    status: 'bounced',
-    staff: 'shaimaa',
-    email: 'parminder@example.com',
-    phone: '+971 50 123 4567',
-    followUpDate: '2025-03-21',
-    notes: ''
-  },
-  {
-    id: '14',
-    date: '2025-03-08',
-    checkNumber: '39',
-    reason: 'Insufficient Balance',
-    amount: 30000,
-    name: 'Deepak - Mrs. Priyanka Lokhande Yuvraj Malhari Lokhande',
-    building: 'TA',
-    unitNumber: '404',
-    paymentWay: 'Will be legal',
-    status: 'pending',
-    staff: 'AFZIRA',
-    email: 'deepak@example.com',
-    phone: '+971 50 234 5678',
-    followUpDate: '2025-03-22',
-    notes: ''
-  },
-  {
-    id: '15',
-    date: '2025-03-25',
-    checkNumber: '33',
-    reason: 'Insufficient Balance',
-    amount: 5550,
-    name: 'Fisal Kifayat',
-    building: 'MAHA B',
-    unitNumber: '101',
-    paymentWay: '',
-    status: 'bounced',
-    staff: 'alyazyah',
-    email: 'fisal@example.com',
-    phone: '+971 50 345 6789',
-    followUpDate: '2025-04-08',
-    notes: ''
-  },
-  {
-    id: '16',
-    date: '2025-03-26',
-    checkNumber: '32',
-    reason: 'Insufficient Funds',
-    amount: 31000,
-    name: 'Ossama Mohamed Ahmed Abdalla',
-    building: 'REEF B',
-    unitNumber: '1601',
-    paymentWay: '',
-    status: 'bounced',
-    staff: 'shaimaa',
-    email: 'ossama@example.com',
-    phone: '+971 50 456 7890',
-    followUpDate: '2025-04-09',
-    notes: ''
-  },
-  {
-    id: '17',
-    date: '2025-03-26',
-    checkNumber: '692859',
-    reason: 'Signature Irregular',
-    amount: 6750,
-    name: 'Ahmed Abdi',
-    building: 'P127',
-    unitNumber: '022_A',
-    paymentWay: 'Requested but returned again',
-    status: 'bounced',
-    staff: '',
-    email: 'ahmed.abdi@example.com',
-    phone: '+971 50 567 8901',
-    followUpDate: '2025-04-09',
-    notes: ''
-  },
-  {
-    id: '18',
-    date: '2025-04-10',
-    checkNumber: '100030',
-    reason: 'Insufficient Funds',
-    amount: 4000,
-    name: 'Nawaf Al Chamlal',
-    building: 'TB',
-    unitNumber: '601',
-    paymentWay: 'Old system cooling bills',
-    status: 'bounced',
-    staff: 'AFZIRA',
-    email: 'nawaf@example.com',
-    phone: '+971 50 678 9012',
-    followUpDate: '2025-04-24',
-    notes: ''
-  },
-  {
-    id: '19',
-    date: '2025-04-25',
-    checkNumber: '34',
-    reason: 'Insufficient Funds',
-    amount: 5550,
-    name: 'Faisal Kifayat',
-    building: 'MA',
-    unitNumber: '101',
-    paymentWay: '',
-    status: 'bounced',
-    staff: '',
-    email: 'faisal@example.com',
-    phone: '+971 50 789 0123',
-    followUpDate: '2025-05-09',
-    notes: ''
-  },
-  {
-    id: '20',
-    date: '2025-04-25',
-    checkNumber: '45',
-    reason: 'Closed Account',
-    amount: 13684,
-    name: 'Ayman Mohamed',
-    building: 'MAHA A2',
-    unitNumber: '1102',
-    paymentWay: 'Paid',
-    status: 'resolved',
-    staff: '',
-    email: 'ayman@example.com',
-    phone: '+971 50 890 1234',
-    followUpDate: '2025-05-09',
-    notes: ''
-  },
-  {
-    id: '21',
-    date: '2025-04-28',
-    checkNumber: '16',
-    reason: 'Insufficient Funds',
-    amount: 11025,
-    name: 'Mohamed Khaled Abdelnabi',
-    building: 'AMHC',
-    unitNumber: '610_A',
-    paymentWay: '',
-    status: 'bounced',
-    staff: 'alyazyah',
-    email: 'mohamed.k@example.com',
-    phone: '+971 50 901 2345',
-    followUpDate: '2025-05-12',
-    notes: ''
-  },
-  {
-    id: '22',
-    date: '2025-05-01',
-    checkNumber: '880079',
-    reason: 'Insufficient Funds',
-    amount: 11025,
-    name: 'Mamta Surehlal Budhrani',
-    building: 'AMHC',
-    unitNumber: '1301_A',
-    paymentWay: '',
-    status: 'bounced',
-    staff: 'alyazyah',
-    email: 'mamta@example.com',
-    phone: '+971 50 012 3456',
-    followUpDate: '2025-05-15',
-    notes: ''
-  },
-  {
-    id: '23',
-    date: '2025-05-01',
-    checkNumber: '500001',
-    reason: 'Insufficient Funds',
-    amount: 14250,
-    name: 'Pham Thi Duyen Hai',
-    building: 'TA',
-    unitNumber: '905',
-    paymentWay: 'Paid partial 7000',
-    status: 'pending',
-    staff: 'AFZIRA',
-    email: 'pham@example.com',
-    phone: '+971 50 123 4567',
-    followUpDate: '2025-05-15',
-    notes: ''
-  },
-  {
-    id: '24',
-    date: '2025-05-10',
-    checkNumber: '100031',
-    reason: 'Insufficient Funds',
-    amount: 3700,
-    name: 'Nawaf Al Chamlal',
-    building: 'TB',
-    unitNumber: '601',
-    paymentWay: 'Old system cooling bills',
-    status: 'bounced',
-    staff: 'AFZIRA',
-    email: 'nawaf@example.com',
-    phone: '+971 50 678 9012',
-    followUpDate: '2025-05-24',
-    notes: ''
-  },
-  {
-    id: '25',
-    date: '2025-05-24',
-    checkNumber: '500107',
-    reason: 'Insufficient Funds',
-    amount: 51250,
-    name: 'Mohammed Souliman Mohammed Ali Altaban',
-    building: 'OMNY',
-    unitNumber: '2901_A',
-    paymentWay: "Didn't replace yet",
-    status: 'pending',
-    staff: 'afrah',
-    email: 'mohammed.s@example.com',
-    phone: '+971 50 234 5678',
-    followUpDate: '2025-06-07',
-    notes: ''
-  },
-  {
-    id: '26',
-    date: '2025-05-25',
-    checkNumber: '500039',
-    reason: 'Insufficient Funds',
-    amount: 41000,
-    name: 'Mayar Hils Real Estate LLC OPC',
-    building: 'OMNIA',
-    unitNumber: '2703',
-    paymentWay: '',
-    status: 'bounced',
-    staff: '',
-    email: 'mayar@example.com',
-    phone: '+971 50 345 6789',
-    followUpDate: '2025-06-08',
-    notes: ''
-  },
-  {
-    id: '27',
-    date: '2025-05-25',
-    checkNumber: '35',
-    reason: 'Insufficient Funds',
-    amount: 5550,
-    name: 'Faisal Kifayat',
-    building: 'MA',
-    unitNumber: '101',
-    paymentWay: '',
-    status: 'bounced',
-    staff: '',
-    email: 'faisal@example.com',
-    phone: '+971 50 789 0123',
-    followUpDate: '2025-06-08',
-    notes: ''
-  },
-  {
-    id: '28',
-    date: '2025-06-01',
-    checkNumber: '336738',
-    reason: 'Irregular Signature',
-    amount: 22500,
-    name: 'Rakesh Kumar',
-    building: 'AMTB',
-    unitNumber: '201_A',
-    paymentWay: 'Will be legal',
-    status: 'pending',
-    staff: 'AFZIRA',
-    email: 'rakesh@example.com',
-    phone: '+971 50 012 3456',
-    followUpDate: '2025-06-15',
-    notes: ''
-  },
-  {
-    id: '29',
-    date: '2025-06-01',
-    checkNumber: '336739',
-    reason: 'Irregular Signature',
-    amount: 22500,
-    name: 'Rakesh Kumar',
-    building: 'AMTB',
-    unitNumber: '201_A',
-    paymentWay: 'Will be legal',
-    status: 'pending',
-    staff: 'AFZIRA',
-    email: 'rakesh@example.com',
-    phone: '+971 50 012 3456',
-    followUpDate: '2025-06-15',
-    notes: ''
-  }
-];
+const initialData: CheckRecord[] = [];
 
 export default function BouncedCheckManager() {
   const [checks, setChecks] = useState<CheckRecord[]>([]);
@@ -547,7 +53,6 @@ export default function BouncedCheckManager() {
     cpvNumber: ''
   });
   const [formErrors, setFormErrors] = useState<ValidationError[]>([]);
-  const [generalError, setGeneralError] = useState('');
   const [touchedFields, setTouchedFields] = useState<Set<string>>(new Set());
   const [editErrors, setEditErrors] = useState<ValidationError[]>([]);
   const [editTouchedFields, setEditTouchedFields] = useState<Set<string>>(new Set());
@@ -590,7 +95,6 @@ export default function BouncedCheckManager() {
 
   const handleAddCheck = () => {
     setFormErrors([]);
-    setGeneralError('');
 
     // Validate form data
     const validation = validateCheckRecord(formData);
@@ -1061,8 +565,11 @@ export default function BouncedCheckManager() {
                     id="unitNumber"
                     value={formData.unitNumber || ''}
                     onChange={(e) => setFormData({ ...formData, unitNumber: e.target.value })}
+                    onBlur={() => handleFieldBlur('unitNumber')}
                     placeholder="Enter unit number"
+                    className={getFieldError('unitNumber', formErrors) && touchedFields.has('unitNumber') ? 'border-destructive' : ''}
                   />
+                  <FieldError error={getFieldError('unitNumber', formErrors)} touched={touchedFields.has('unitNumber')} />
                 </div>
 
                 <div className="space-y-2">
@@ -1071,8 +578,11 @@ export default function BouncedCheckManager() {
                     id="checkNumber"
                     value={formData.checkNumber || ''}
                     onChange={(e) => setFormData({ ...formData, checkNumber: e.target.value })}
+                    onBlur={() => handleFieldBlur('checkNumber')}
                     placeholder="Enter check number"
+                    className={getFieldError('checkNumber', formErrors) && touchedFields.has('checkNumber') ? 'border-destructive' : ''}
                   />
+                  <FieldError error={getFieldError('checkNumber', formErrors)} touched={touchedFields.has('checkNumber')} />
                 </div>
 
                 <div className="space-y-2">
@@ -1082,8 +592,11 @@ export default function BouncedCheckManager() {
                     type="number"
                     value={formData.amount || ''}
                     onChange={(e) => setFormData({ ...formData, amount: Number(e.target.value) })}
+                    onBlur={() => handleFieldBlur('amount')}
                     placeholder="Enter amount"
+                    className={getFieldError('amount', formErrors) && touchedFields.has('amount') ? 'border-destructive' : ''}
                   />
+                  <FieldError error={getFieldError('amount', formErrors)} touched={touchedFields.has('amount')} />
                 </div>
 
                 <div className="space-y-2">
@@ -1093,7 +606,10 @@ export default function BouncedCheckManager() {
                     type="date"
                     value={formData.date || ''}
                     onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                    onBlur={() => handleFieldBlur('date')}
+                    className={getFieldError('date', formErrors) && touchedFields.has('date') ? 'border-destructive' : ''}
                   />
+                  <FieldError error={getFieldError('date', formErrors)} touched={touchedFields.has('date')} />
                 </div>
 
                 <div className="space-y-2">
@@ -1113,8 +629,11 @@ export default function BouncedCheckManager() {
                     type="email"
                     value={formData.email || ''}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    onBlur={() => handleFieldBlur('email')}
                     placeholder="tenant@example.com"
+                    className={getFieldError('email', formErrors) && touchedFields.has('email') ? 'border-destructive' : ''}
                   />
+                  <FieldError error={getFieldError('email', formErrors)} touched={touchedFields.has('email')} />
                 </div>
 
                 <div className="space-y-2">
@@ -1123,8 +642,11 @@ export default function BouncedCheckManager() {
                     id="phone"
                     value={formData.phone || ''}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    onBlur={() => handleFieldBlur('phone')}
                     placeholder="+971 50 123 4567"
+                    className={getFieldError('phone', formErrors) && touchedFields.has('phone') ? 'border-destructive' : ''}
                   />
+                  <FieldError error={getFieldError('phone', formErrors)} touched={touchedFields.has('phone')} />
                 </div>
 
                 <div className="space-y-2">
@@ -1248,6 +770,14 @@ export default function BouncedCheckManager() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
+              {editErrors.length > 0 && (
+                <ValidationAlert
+                  type="error"
+                  title="Validation Error"
+                  errors={editErrors}
+                  onDismiss={() => setEditErrors([])}
+                />
+              )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="edit-name">Tenant Name</Label>
@@ -1255,7 +785,10 @@ export default function BouncedCheckManager() {
                     id="edit-name"
                     value={selectedCheck.name}
                     onChange={(e) => setSelectedCheck({ ...selectedCheck, name: e.target.value })}
+                    onBlur={() => handleEditFieldBlur('name')}
+                    className={getFieldError('name', editErrors) && editTouchedFields.has('name') ? 'border-destructive' : ''}
                   />
+                  <FieldError error={getFieldError('name', editErrors)} touched={editTouchedFields.has('name')} />
                 </div>
 
                 <div className="space-y-2">
@@ -1264,7 +797,10 @@ export default function BouncedCheckManager() {
                     id="edit-building"
                     value={selectedCheck.building}
                     onChange={(e) => setSelectedCheck({ ...selectedCheck, building: e.target.value })}
+                    onBlur={() => handleEditFieldBlur('building')}
+                    className={getFieldError('building', editErrors) && editTouchedFields.has('building') ? 'border-destructive' : ''}
                   />
+                  <FieldError error={getFieldError('building', editErrors)} touched={editTouchedFields.has('building')} />
                 </div>
 
                 <div className="space-y-2">
