@@ -1,15 +1,16 @@
 import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
+import { ObjectId } from 'mongodb';
 
 export async function GET() {
   try {
     const { db } = await connectToDatabase();
     const checks = await db.collection('checks').find({}).toArray();
-    // Map _id back to id for frontend compatibility
+    // Map Mongo _id to `id` string for frontend compatibility
     const mapped = checks.map(doc => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { _id, ...rest } = doc as any;
-      return { ...rest, _id };
+      return { ...rest, id: String(_id) };
     });
     return NextResponse.json(mapped);
   } catch (err) {
@@ -34,10 +35,12 @@ export async function POST(request: Request) {
     }
 
     const { db } = await connectToDatabase();
-    // Use id as _id for MongoDB (avoids duplicate key errors)
-    const docToInsert = { ...body, _id: body.id };
+    // Remove client-provided id and let MongoDB create a new ObjectId
+    const { id: clientId, ...rest } = body as any;
+    const docToInsert = { ...rest };
     const result = await db.collection('checks').insertOne(docToInsert);
-    return NextResponse.json({ ...body, _id: result.insertedId }, { status: 201 });
+    // Return created document with `id` as string
+    return NextResponse.json({ ...docToInsert, id: String(result.insertedId) }, { status: 201 });
   } catch (err) {
     console.error('POST /api/checks error', err);
     const msg = (err as Error).message || 'Failed to create check';
