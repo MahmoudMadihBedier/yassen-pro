@@ -4,6 +4,7 @@ import { createContext, useContext, useState, useEffect } from 'react';
 
 interface AuthContextType {
   user: { username: string } | null;
+  isAuthenticated: boolean;
   login: (username: string, password: string) => boolean;
   logout: () => void;
 }
@@ -18,6 +19,7 @@ const VALID_USERS = [
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<{ username: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const isAuthenticated = !!user;
 
   useEffect(() => {
     // Check if user is stored in localStorage
@@ -59,7 +61,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{
+      user,
+      isAuthenticated,
+      login,
+      logout,
+    }}>
       {children}
     </AuthContext.Provider>
   );

@@ -40,9 +40,16 @@
     ]
   },
   "include": [
+    "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
-    ".next/types/**/*.ts"
+    ".next/types/**/*.ts",
+    "types/**/*.d.ts",
+    "**/*.d.ts"
+  ],
+  "typeRoots": [
+    "./node_modules/@types",
+    "./types"
   ],
   "exclude": [
     "node_modules"
