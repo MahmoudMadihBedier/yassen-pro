@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import "./globals.css"
 import { AuthProvider } from "@/context/AuthContext"
 import { ThemeProvider } from "@/components/theme-provider"
+import { CheckServiceProvider } from "@/context/CheckServiceContext"
 
 export const metadata: Metadata = {
   title: "Bounced Check Manager",
@@ -23,7 +24,9 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <AuthProvider>
-            {children}
+            <CheckServiceProvider>
+              {children}
+            </CheckServiceProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>
