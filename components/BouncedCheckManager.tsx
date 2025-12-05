@@ -1,6 +1,7 @@
  'use client'
 
 import { useState, useEffect } from 'react';
+import debounce from '@/lib/debounce';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -555,7 +556,7 @@ export default function BouncedCheckManager() {
             <Input
               placeholder="Search by name, building, unit number, or check number..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={debounce((e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value), 300)}
               className="pl-10 h-12 text-base"
             />
           </div>
