@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format, addWeeks, isPast, differenceInDays } from 'date-fns';
-import { Search, Plus, Phone, Mail, Calendar, DollarSign, AlertCircle, CheckCircle, Clock, Building2, Hash, User, FileText, LogOut } from 'lucide-react';
+import {  AlertCircle, CheckCircle,  User} from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { ValidationAlert, FieldError } from '@/components/ValidationAlert';
 import { validateCheckRecord, ValidationError } from '@/lib/validation';
