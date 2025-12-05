@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format, addWeeks, isPast, differenceInDays } from 'date-fns';
-import {  AlertCircle, CheckCircle,  User} from 'lucide-react';
+import { AlertCircle, CheckCircle, User } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { ValidationAlert, FieldError } from '@/components/ValidationAlert';
 import { validateCheckRecord, ValidationError } from '@/lib/validation';
@@ -380,11 +380,11 @@ export default function BouncedCheckManager() {
     switch (status) {
       case 'bounced': return <AlertCircle className="w-4 h-4" />;
       case 'retrieved': return <CheckCircle className="w-4 h-4" />;
-      case 'pending': return <Clock className="w-4 h-4" />;
+      case 'pending': return <AlertCircle className="w-4 h-4" />;
       case 'resolved': return <CheckCircle className="w-4 h-4" />;
       case 'deal_close': return <CheckCircle className="w-4 h-4" />;
       case 'partial_paid': return <CheckCircle className="w-4 h-4" />;
-      default: return <Clock className="w-4 h-4" />;
+      default: return <AlertCircle className="w-4 h-4" />;
     }
   };
 
@@ -472,7 +472,7 @@ export default function BouncedCheckManager() {
                 onClick={() => setShowAddModal(true)} 
                 className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-md hover:shadow-lg transition-all"
               >
-                <Plus className="w-4 h-4 mr-2" />
+                <AlertCircle className="w-4 h-4 mr-2" />
                 Add New Check
               </Button>
               <Button 
@@ -480,7 +480,7 @@ export default function BouncedCheckManager() {
                 variant="outline"
                 className="hover:bg-destructive/10 border-destructive/30"
               >
-                <LogOut className="w-4 h-4 mr-2" />
+                <AlertCircle className="w-4 h-4 mr-2" />
                 Logout
               </Button>
             </div>
@@ -540,7 +540,7 @@ export default function BouncedCheckManager() {
           <CardContent>
             <div className="flex items-center gap-3">
               <div className="p-3 bg-primary/10 rounded-full">
-                <DollarSign className="w-8 h-8 text-primary" />
+                <CheckCircle className="w-8 h-8 text-primary" />
               </div>
               <span className="text-5xl font-bold text-foreground">
                 AED {stats.totalAmount.toLocaleString()}
@@ -551,7 +551,7 @@ export default function BouncedCheckManager() {
 
         <div className="flex flex-col md:flex-row gap-4 p-4 bg-card rounded-lg shadow-md border border-border">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-3 w-5 h-5 text-muted-foreground" />
+            <AlertCircle className="absolute left-3 top-3 w-5 h-5 text-muted-foreground" />
             <Input
               placeholder="Search by name, building, unit number, or check number..."
               value={searchTerm}
@@ -591,12 +591,12 @@ export default function BouncedCheckManager() {
                       {check.name}
                     </CardTitle>
                     <CardDescription className="mt-2 flex items-center gap-2 text-base">
-                      <Building2 className="w-4 h-4 text-muted-foreground" />
+                      <CheckCircle className="w-4 h-4 text-muted-foreground" />
                       {check.building}
                     </CardDescription>
                     {check.unitNumber && (
                       <CardDescription className="mt-1 text-sm font-medium text-primary flex items-center gap-1">
-                        <Hash className="w-3 h-3" />
+                        <CheckCircle className="w-3 h-3" />
                         Unit: {check.unitNumber}
                       </CardDescription>
                     )}
@@ -610,7 +610,7 @@ export default function BouncedCheckManager() {
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between p-3 bg-primary/5 rounded-lg">
                   <span className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                    <DollarSign className="w-4 h-4" />
+                    <CheckCircle className="w-4 h-4" />
                     Amount
                   </span>
                   <span className="text-2xl font-bold text-primary">AED {check.amount.toLocaleString()}</span>
@@ -618,7 +618,7 @@ export default function BouncedCheckManager() {
 
                 <div className="flex items-center justify-between p-2 bg-muted/30 rounded-lg">
                   <span className="text-sm text-muted-foreground flex items-center gap-2">
-                    <Hash className="w-4 h-4" />
+                    <CheckCircle className="w-4 h-4" />
                     Check No.
                   </span>
                   <span className="text-sm font-bold text-foreground">{check.checkNumber}</span>
@@ -626,7 +626,7 @@ export default function BouncedCheckManager() {
 
                 <div className="p-2 bg-muted/20 rounded-lg">
                   <div className="flex items-start gap-2">
-                    <FileText className="w-4 h-4 text-muted-foreground mt-0.5" />
+                    <CheckCircle className="w-4 h-4 text-muted-foreground mt-0.5" />
                     <div>
                       <span className="text-xs text-muted-foreground">Reason</span>
                       <p className="text-sm font-medium text-foreground">{check.reason}</p>
@@ -636,11 +636,11 @@ export default function BouncedCheckManager() {
 
                 <div className="pt-3 border-t-2 border-border space-y-3">
                   <div className="flex items-center gap-2 text-sm p-2 hover:bg-muted/20 rounded transition-colors">
-                    <Mail className="w-4 h-4 text-primary" />
+                    <CheckCircle className="w-4 h-4 text-primary" />
                     <span className="text-foreground truncate font-medium">{check.email || 'No email'}</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm p-2 hover:bg-muted/20 rounded transition-colors">
-                    <Phone className="w-4 h-4 text-primary" />
+                    <CheckCircle className="w-4 h-4 text-primary" />
                     <span className="text-foreground font-medium">{check.phone || 'No phone'}</span>
                   </div>
                 </div>
@@ -658,7 +658,7 @@ export default function BouncedCheckManager() {
                 )}
 
                 <div className="flex items-center gap-2 text-sm text-muted-foreground mt-4 p-2 bg-accent/10 rounded-lg">
-                  <Calendar className="w-4 h-4 text-accent" />
+                  <CheckCircle className="w-4 h-4 text-accent" />
                   <span className="font-medium">Next Follow-up: {format(new Date(check.followUpDate), 'MMM dd, yyyy')}</span>
                 </div>
               </CardContent>
@@ -680,7 +680,7 @@ export default function BouncedCheckManager() {
                     </>
                   ) : (
                     <>
-                      <Calendar className="w-4 h-4 mr-2" />
+                      <CheckCircle className="w-4 h-4 mr-2" />
                       Follow-up
                     </>
                   )}
@@ -693,7 +693,7 @@ export default function BouncedCheckManager() {
                   size="sm"
                   className="flex-1 bg-primary"
                 >
-                  <Phone className="w-4 h-4 mr-2" />
+                  <CheckCircle className="w-4 h-4 mr-2" />
                   Contact
                 </Button>
               </div>
@@ -1233,14 +1233,14 @@ export default function BouncedCheckManager() {
               <div className="space-y-2">
                 <Label>Email</Label>
                 <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
-                  <Mail className="w-4 h-4 text-muted-foreground" />
+                  <CheckCircle className="w-4 h-4 text-muted-foreground" />
                   <span className="font-medium">{selectedCheck.email}</span>
                 </div>
               </div>
               <div className="space-y-2">
                 <Label>Phone</Label>
                 <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
-                  <Phone className="w-4 h-4 text-muted-foreground" />
+                  <CheckCircle className="w-4 h-4 text-muted-foreground" />
                   <span className="font-medium">{selectedCheck.phone}</span>
                 </div>
               </div>
@@ -1260,7 +1260,7 @@ export default function BouncedCheckManager() {
                   Cancel
                 </Button>
                 <Button onClick={handleSendMessage} className="bg-primary text-primary-foreground">
-                  <Mail className="w-4 h-4 mr-2" />
+                  <CheckCircle className="w-4 h-4 mr-2" />
                   Send Message
                 </Button>
               </div>
@@ -1330,23 +1330,23 @@ export default function BouncedCheckManager() {
                             </div>
                             <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm text-muted-foreground">
                               <div className="flex items-center gap-1">
-                                <Hash className="w-3 h-3" />
+                                <CheckCircle className="w-3 h-3" />
                                 Check #{check.checkNumber}
                               </div>
                               <div className="flex items-center gap-1">
-                                <DollarSign className="w-3 h-3" />
+                                <CheckCircle className="w-3 h-3" />
                                 AED {check.amount.toLocaleString()}
                               </div>
                               <div className="flex items-center gap-1">
-                                <Building2 className="w-3 h-3" />
+                                <CheckCircle className="w-3 h-3" />
                                 {check.building}
                               </div>
                               <div className="flex items-center gap-1">
-                                <Calendar className="w-3 h-3" />
+                                <CheckCircle className="w-3 h-3" />
                                 {format(new Date(check.followUpDate), 'MMM dd, yyyy')}
                               </div>
                               <div className="flex items-center gap-1">
-                                <Clock className="w-3 h-3" />
+                                <CheckCircle className="w-3 h-3" />
                                 {check.status}
                               </div>
                             </div>
@@ -1355,7 +1355,7 @@ export default function BouncedCheckManager() {
                             {isOverdue ? (
                               <AlertCircle className="w-6 h-6 text-destructive" />
                             ) : (
-                              <Clock className="w-6 h-6 text-accent" />
+                              <CheckCircle className="w-6 h-6 text-accent" />
                             )}
                           </div>
                         </div>
