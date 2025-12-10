@@ -7,13 +7,14 @@ interface AuthContextType {
   isAuthenticated: boolean;
   login: (username: string, password: string) => boolean;
   logout: () => void;
+  checkSessionPassword: (password: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const VALID_USERS = [
-  { username: 'yassen', password: '9569633' },
-  { username: 'collabrate', password: '9569633' }
+  { username: 'yassen', password: '151515' },
+  { username: 'collabrate', password: '151515' }
 ];
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -34,14 +35,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const validUser = VALID_USERS.find(
       u => u.username === username && u.password === password
     );
-
     if (validUser) {
       const userObj = { username: validUser.username };
       setUser(userObj);
       localStorage.setItem('currentUser', JSON.stringify(userObj));
+      localStorage.setItem('currentPassword', password);
       return true;
     }
     return false;
+  };
+
+  // Checks the password used in the session, logs out if incorrect
+  const checkSessionPassword = (password: string) => {
+    const storedUser = localStorage.getItem('currentUser');
+    const storedPassword = localStorage.getItem('currentPassword');
+    if (!storedUser || !storedPassword || storedPassword !== password) {
+      logout();
+    }
   };
 
   const logout = () => {
@@ -66,6 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isAuthenticated,
       login,
       logout,
+      checkSessionPassword,
     }}>
       {children}
     </AuthContext.Provider>
