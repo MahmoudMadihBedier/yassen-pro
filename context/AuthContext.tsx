@@ -12,8 +12,8 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const VALID_USERS = [
-  { username: 'yassen', password: '9569633' },
-  { username: 'collabrate', password: '9569633' }
+  { username: 'yassen', password: '151515' },
+  { username: 'collabrate', password: '151515' }
 ];
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
